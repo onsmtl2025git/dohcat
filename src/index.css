@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+    --color-leo-bg: #fdfbf7;
+    /* Warm off-white */
+    --color-leo-primary: #8B5CF6;
+    /* Soft Purple */
+    --color-leo-secondary: #EC4899;
+    /* Soft Pink */
+    --color-leo-accent: #F59E0B;
+    /* Warm Amber */
+    --color-leo-surface: #ffffff;
+
+    --font-display: "Fredoka", sans-serif;
+    --font-body: "Nunito", sans-serif;
+}
+
+/* Custom Utilities for Glassmorphism */
+@layer utilities {
+    .glass-panel {
+        @apply bg-white/70 backdrop-blur-lg border border-white/50 shadow-sm;
+    }
+
+    .glass-card {
+        @apply bg-white/80 backdrop-blur-md border border-white/40 shadow-md hover:shadow-lg transition-all duration-300;
+    }
+}
+
+body {
+    background-color: var(--color-leo-bg);
+    color: #4b5563;
+    font-family: var(--font-body);
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+    font-family: var(--font-display);
+}
