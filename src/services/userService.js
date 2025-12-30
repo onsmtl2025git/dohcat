@@ -1,7 +1,7 @@
 import { doc, getDoc, setDoc, updateDoc, increment, arrayUnion } from "firebase/firestore";
 import { db } from "../firebase";
 
-export const createUserProfile = async (uid, isAnonymous = true) => {
+export const createUserProfile = async (uid, isAnonymous = true, extraData = {}) => {
     const userRef = doc(db, "users", uid);
     const userSnap = await getDoc(userRef);
 
@@ -9,11 +9,15 @@ export const createUserProfile = async (uid, isAnonymous = true) => {
         const newProfile = {
             uid,
             isAnonymous,
+            username: extraData.username || (isAnonymous ? 'Guest Explorer' : 'New User'),
+            email: extraData.email || 'N/A',
+            role: extraData.role || 'User',
             level: 1,
             xp: 0,
             coins: 0,
             emojis: ['🐱'], // Starter emoji
-            createdAt: new Date()
+            createdAt: new Date(),
+            ...extraData // Allow overriding any field
         };
         await setDoc(userRef, newProfile);
         return newProfile;

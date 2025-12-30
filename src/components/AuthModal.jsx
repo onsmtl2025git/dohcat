@@ -5,6 +5,7 @@ const AuthModal = ({ isOpen, onClose }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
 
@@ -19,6 +20,8 @@ const AuthModal = ({ isOpen, onClose }) => {
             if (isLogin) {
                 await loginWithEmail(email, password);
             } else {
+                window.pendingRole = 'User'; // Modals are always User by default
+                window.pendingUsername = username;
                 await registerWithEmail(email, password);
             }
             onClose();
@@ -52,6 +55,18 @@ const AuthModal = ({ isOpen, onClose }) => {
                 )}
 
                 <form onSubmit={handleSubmit} className="space-y-4">
+                    {!isLogin && (
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
+                                className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[var(--color-leo-primary)] focus:border-transparent outline-none transition"
+                                required={!isLogin}
+                            />
+                        </div>
+                    )}
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                         <input

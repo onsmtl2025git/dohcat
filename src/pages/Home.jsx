@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useUser } from '../context/UserContext';
 import { getAllQuizzes, subscribeToQuizzes } from '../services/quizService';
 import { getHotTopics } from '../services/discussService';
+import { findBattleByCode, ensureBattleForQuiz } from '../services/battleService';
 
 // Mock Data (Gamers & Trending Tags still mock for now as requested or low priority)
 const TOP_GAMERS = [
@@ -44,9 +45,31 @@ const Home = () => {
         return () => unsubscribe();
     }, []);
 
-    const handleJoin = (e) => {
+    const handleJoin = async (e) => {
         e.preventDefault();
-        alert(`Joining room ${joinCode} (Mock Action)`);
+        if (!joinCode) return;
+
+        const existing = await findBattleByCode(joinCode);
+        if (existing) {
+            nav(`/battle/${existing.id}`);
+        } else {
+            alert("Battle not found! Please check the code. 🐾");
+        }
+    };
+
+    const handleStartCatpool = async (quiz) => {
+        if (!user) {
+            alert("Please login to host a battle! 🐱");
+            return;
+        }
+
+        try {
+            const battle = await ensureBattleForQuiz(quiz, user);
+            nav(`/battle/${battle.id}`);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to start battle.");
+        }
     };
 
     return (
@@ -96,7 +119,7 @@ const Home = () => {
                                     className="w-full outline-none text-gray-700 font-bold bg-transparent placeholder:text-gray-400"
                                 />
                             </div>
-                            <button className="bg-[#2d5f1e] text-white px-8 py-3 rounded-full font-bold shadow-md hover:bg-[#234b17] transition-all flex items-center gap-2">
+                            <button type="submit" className="bg-[#2d5f1e] text-white px-8 py-3 rounded-full font-bold shadow-md hover:bg-[#234b17] transition-all flex items-center gap-2">
                                 🫧 Join Now
                             </button>
                         </form>
@@ -147,7 +170,7 @@ const Home = () => {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 flex-1">
                         {freshQuizzes.length > 0 ? freshQuizzes.map((quiz, i) => (
-                            <div key={i} className="bg-white rounded-xl p-4 text-gray-800 shadow-sm flex flex-col h-full relative group hover:-translate-y-1 transition-transform cursor-pointer" onClick={() => nav('/create-quiz')}>
+                            <div key={quiz.id || i} className="bg-white rounded-xl p-4 text-gray-800 shadow-sm flex flex-col h-full relative group hover:-translate-y-1 transition-transform cursor-pointer" onClick={() => handleStartCatpool(quiz)}>
                                 <span className="absolute top-3 right-3 text-yellow-500">⭐</span>
                                 <span className="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded w-fit mb-2">NEW</span>
                                 <h3 className="font-bold text-sm mb-1 line-clamp-1">{quiz.title || "Untitled Quiz"}</h3>
@@ -155,9 +178,9 @@ const Home = () => {
 
                                 <div className="mt-auto pt-2 border-t border-gray-100 flex flex-col gap-2">
                                     <div className="bg-red-50 text-red-700 text-xs font-bold text-center py-1 rounded">
-                                        Code: {Math.floor(100000 + Math.random() * 900000)}
+                                        Code: {quiz.battleCode || (quiz.id ? quiz.id.slice(0, 6).toUpperCase() : '------')}
                                     </div>
-                                    <span className="text-[10px] text-gray-400">⚡ 10 plays</span>
+                                    <span className="text-[10px] text-gray-400">⚡ {quiz.plays || 0} plays</span>
                                 </div>
                             </div>
                         )) : (

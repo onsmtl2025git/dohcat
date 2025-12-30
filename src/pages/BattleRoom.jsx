@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { subscribeToBattle } from '../services/battleService';
+import { subscribeToBattle, findBattleByCode } from '../services/battleService';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 
@@ -25,15 +25,29 @@ const BattleRoom = () => {
 
     useEffect(() => {
         if (!battleId) return;
-        const unsubscribe = subscribeToBattle(battleId, (data) => {
-            if (!data) {
-                alert("Battle not found!");
-                nav('/');
-            } else {
-                setBattle(data);
-            }
-        });
-        return () => unsubscribe();
+
+        let unsub = () => { };
+
+        const init = async () => {
+            // First try direct ID
+            unsub = subscribeToBattle(battleId, async (data) => {
+                if (!data) {
+                    // Try code lookup if not found
+                    const byCode = await findBattleByCode(battleId);
+                    if (byCode) {
+                        nav(`/battle/${byCode.id}`, { replace: true });
+                    } else {
+                        alert("Battle not found!");
+                        nav('/');
+                    }
+                } else {
+                    setBattle(data);
+                }
+            });
+        };
+
+        init();
+        return () => unsub();
     }, [battleId, nav]);
 
     // Timer Logic
@@ -135,16 +149,25 @@ const BattleRoom = () => {
                             if (selectedOption === i) btnClass = "bg-blue-500 text-white border-blue-700 scale-[0.98]";
 
                             if (timeLeft === 0) {
-                                if (i === MOCK_QUESTION.correct) btnClass = "bg-green-500 text-white border-green-700 shadow-xl scale-105";
-                                else if (selectedOption === i) btnClass = "bg-red-500 text-white border-red-700 opacity-80";
-                                else btnClass = "bg-gray-100 text-gray-400 border-gray-200 opacity-50";
+                                if (i === MOCK_QUESTION.correct) {
+                                    // Always Green for Correct
+                                    btnClass = "bg-green-500 text-white border-green-700 shadow-xl scale-105";
+                                } else {
+                                    // Always Red for Incorrect
+                                    btnClass = "bg-red-400 text-white border-red-600 opacity-90";
+
+                                    // Highlight user's wrong choice
+                                    if (selectedOption === i) {
+                                        btnClass = "bg-red-600 text-white border-red-800 scale-100 ring-4 ring-red-200";
+                                    }
+                                }
                             }
 
                             return (
                                 <button
                                     key={i}
                                     onClick={() => handleAnswer(i)}
-                                    disabled={selectedOption !== null || timeLeft === 0}
+                                    disabled={timeLeft === 0}
                                     className={`p-6 rounded-2xl text-lg font-bold shadow-sm border-b-4 transition-all transform active:scale-95 ${btnClass}`}
                                 >
                                     {opt}
@@ -178,25 +201,38 @@ const BattleRoom = () => {
         </div>
     );
 
-    const CeremonyOverlay = () => (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-md flex items-center justify-center animate-in fade-in duration-700">
-            <div className="text-center">
-                <h1 className="text-6xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-300 via-orange-400 to-red-500 mb-12 drop-shadow-lg">WINNERS</h1>
-                <div className="flex items-end justify-center gap-4 h-96">
+    const RenderCeremony = () => (
+        <div className="md:col-span-2 h-full glass-card bg-white flex flex-col items-center justify-center animate-in fade-in zoom-in duration-700 p-8 relative overflow-hidden shadow-2xl border-4 border-yellow-200">
+            <div className="absolute inset-0 bg-gradient-to-b from-yellow-50 to-white opacity-50"></div>
+            <div className="text-center z-10 w-full">
+                <h1 className="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-8 drop-shadow-sm">VICTORY!</h1>
+                <div className="flex items-end justify-center gap-2 md:gap-6 h-64 mb-8">
+                    {/* 2nd Place */}
                     <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-1000 delay-200">
-                        <div className="text-6xl mb-4">🥈</div>
-                        <div className="w-32 h-48 bg-gray-300 rounded-t-xl flex items-end justify-center pb-4 shadow-lg border-t-4 border-gray-400"><div className="font-bold text-gray-700">Player 2</div></div>
+                        <div className="text-4xl md:text-5xl mb-2">🥈</div>
+                        <div className="w-20 md:w-24 h-32 bg-gray-200 rounded-t-2xl flex items-end justify-center pb-4 shadow-inner border-t-4 border-gray-300">
+                            <div className="font-bold text-gray-500 text-xs md:text-sm truncate max-w-full px-1">{sortedPlayers[1]?.uid.slice(0, 6) || '-'}</div>
+                        </div>
                     </div>
-                    <div className="flex flex-col items-center z-10 animate-in slide-in-from-bottom duration-1000">
-                        <div className="text-8xl mb-4 animate-bounce">👑</div>
-                        <div className="w-40 h-64 bg-yellow-400 rounded-t-xl flex items-end justify-center pb-8 shadow-xl border-t-4 border-yellow-200 relative overflow-hidden"><div className="font-bold text-yellow-900 text-xl">Player 1</div></div>
+                    {/* 1st Place */}
+                    <div className="flex flex-col items-center z-10 animate-in slide-in-from-bottom duration-1000 -mx-2 mb-2">
+                        <div className="text-6xl md:text-7xl mb-2 animate-bounce">👑</div>
+                        <div className="w-24 md:w-32 h-48 bg-yellow-300 rounded-t-2xl flex items-end justify-center pb-6 shadow-lg border-t-8 border-yellow-400 relative overflow-hidden">
+                            <div className="absolute top-0 w-full h-full bg-gradient-to-b from-yellow-200 to-transparent opacity-50"></div>
+                            <div className="font-black text-yellow-800 text-sm md:text-lg truncate max-w-full px-2">{sortedPlayers[0]?.uid.slice(0, 6) || '-'}</div>
+                        </div>
                     </div>
+                    {/* 3rd Place */}
                     <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-1000 delay-500">
-                        <div className="text-6xl mb-4">🥉</div>
-                        <div className="w-32 h-32 bg-orange-300 rounded-t-xl flex items-end justify-center pb-4 shadow-lg border-t-4 border-orange-400"><div className="font-bold text-orange-800">Player 3</div></div>
+                        <div className="text-4xl md:text-5xl mb-2">🥉</div>
+                        <div className="w-20 md:w-24 h-24 bg-orange-200 rounded-t-2xl flex items-end justify-center pb-3 shadow-inner border-t-4 border-orange-300">
+                            <div className="font-bold text-orange-700 text-xs md:text-sm truncate max-w-full px-1">{sortedPlayers[2]?.uid.slice(0, 6) || '-'}</div>
+                        </div>
                     </div>
                 </div>
-                <button onClick={() => nav('/')} className="mt-16 px-12 py-4 bg-white text-gray-900 font-bold rounded-full text-xl hover:scale-110 transition shadow-2xl">Back to Lobby 🏠</button>
+                <button onClick={() => nav('/')} className="px-8 py-3 bg-gray-900 text-white font-bold rounded-2xl hover:scale-105 transition shadow-xl border-2 border-gray-800 text-sm md:text-base">
+                    Return to Lobby 🏠
+                </button>
             </div>
         </div>
     );
@@ -206,10 +242,9 @@ const BattleRoom = () => {
             <h1 className="text-2xl font-bold text-gray-400 mb-6 font-display uppercase tracking-widest text-center">Battle Arena <span className="text-gray-300">#{battle.code}</span></h1>
             <div className="max-w-7xl mx-auto h-[75vh] grid grid-cols-1 md:grid-cols-4 gap-6">
                 <RenderRankings />
-                <RenderGameBoard />
+                {showCeremony ? <RenderCeremony /> : <RenderGameBoard />}
                 <RenderStatus />
             </div>
-            {showCeremony && <CeremonyOverlay />}
         </div>
     );
 };

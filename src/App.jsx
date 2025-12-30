@@ -24,11 +24,13 @@ function App() {
         <Route path="battle/:battleId" element={<BattleRoom />} />
         <Route path="create-quiz" element={<CreateQuiz />} />
         <Route path="shop" element={<Shop />} />
+        <Route path="discuss" element={<Discuss />} />
 
         {/* Protected Dashboards (Inside Layout) */}
         <Route path="parent" element={<UnifiedDashboard role="Parents" themeColor="cyan" />} />
         <Route path="admin" element={<UnifiedDashboard role="Admin" themeColor="purple" />} />
         <Route path="teacher" element={<UnifiedDashboard role="Teacher" themeColor="emerald" />} />
+        <Route path="user" element={<UnifiedDashboard role="User" themeColor="orange" />} />
       </Route>
 
       {/* Auth Portals (Full Screen / No Layout) */}

@@ -4,13 +4,17 @@ import {
     doc,
     updateDoc,
     onSnapshot,
-    arrayUnion
+    arrayUnion,
+    getDocs,
+    query,
+    where,
+    setDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 
-// Generate a random 6-character code
+// Generate a random 6-digit numeric code
 const generateBattleCode = () => {
-    return Math.random().toString(36).substring(2, 8).toUpperCase();
+    return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 export const createBattle = async (hostProfile) => {
@@ -56,7 +60,41 @@ export const subscribeToBattle = (battleId, callback) => {
     });
 };
 
-// Helper to find battle ID by Code (since users might type the code)
-// In a real app, you'd query for where('code', '==', inputCode)
-// For this demo, we might skip implementation or assume direct direct linking for now to save time
-// unless requested.
+// Find battle ID by its 6-character Code
+export const findBattleByCode = async (code) => {
+    const q = query(collection(db, "battles"), where("code", "==", code.toUpperCase()));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+    }
+    return null;
+};
+
+// Ensure a battle exists for a quiz, or create one with the persistent code
+export const ensureBattleForQuiz = async (quiz, hostProfile) => {
+    // Fallback if quiz is missing persistent code (older records), assign a new numeric one
+    const codeToUse = quiz.battleCode || generateBattleCode();
+
+    // Check if battle with this code already exists
+    const existing = await findBattleByCode(codeToUse);
+    if (existing) return existing;
+
+    // Create a new one
+    const newBattle = {
+        code: codeToUse,
+        quizId: quiz.id || 'none',
+        hostId: hostProfile.uid,
+        status: 'lobby',
+        players: [{
+            uid: hostProfile.uid,
+            level: hostProfile.level || 1,
+            emoji: hostProfile.emojis?.[0] || '🐱',
+            score: 0
+        }],
+        createdAt: new Date()
+    };
+
+    const docRef = await addDoc(collection(db, "battles"), newBattle);
+    return { id: docRef.id, ...newBattle };
+};

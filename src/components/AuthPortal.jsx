@@ -7,6 +7,7 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [verificationSent, setVerificationSent] = useState(false);
@@ -46,6 +47,9 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                     nav(redirectPath);
                 }
             } else {
+                // Set pending info for UserContext to pick up after registration
+                window.pendingRole = role;
+                window.pendingUsername = username;
                 await signUp(email, password);
                 setVerificationSent(true);
                 setIsLogin(true); // Switch back to login view
@@ -116,6 +120,16 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                 )}
 
                 <form onSubmit={handleAuth} className="space-y-4">
+                    {!isLogin && (
+                        <input
+                            type="text"
+                            placeholder="Display Username"
+                            className={`w-full px-6 py-3 bg-gray-50 border-none rounded-2xl text-gray-700 font-bold focus:ring-2 ${theme.border} outline-none transition-all placeholder:text-gray-400`}
+                            value={username}
+                            onChange={e => setUsername(e.target.value)}
+                            required={!isLogin}
+                        />
+                    )}
                     <input
                         type="email"
                         placeholder="Email Address"
@@ -144,12 +158,14 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                 </form>
 
                 <div className="mt-6 text-center">
-                    <button
-                        onClick={() => setIsLogin(!isLogin)}
-                        className={`${theme.text} font-bold hover:underline text-sm`}
-                    >
-                        {isLogin ? 'New here? Create an Account' : 'Already have an account? Log In'}
-                    </button>
+                    {role !== 'Admin' && (
+                        <button
+                            onClick={() => setIsLogin(!isLogin)}
+                            className={`${theme.text} font-bold hover:underline text-sm`}
+                        >
+                            {isLogin ? 'New here? Create an Account' : 'Already have an account? Log In'}
+                        </button>
+                    )}
                 </div>
 
                 <div className="mt-8">

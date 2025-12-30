@@ -17,9 +17,13 @@ export const subscribeToQuizzes = (callback) => {
 };
 
 export const createQuiz = async (quizData, userId) => {
+    // Generate a persistent 6-digit numeric code for this quiz's battle room
+    const battleCode = Math.floor(100000 + Math.random() * 900000).toString();
+
     const newQuiz = {
         ...quizData,
         creatorId: userId,
+        battleCode, // Persistent code
         createdAt: new Date(),
         plays: 0,
         likes: 0

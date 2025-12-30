@@ -10,9 +10,10 @@ const Layout = () => {
 
     // Menu Items Configuration
     const MENU_ITEMS = [
-        { name: 'Playground', path: '/', icon: '🎮' },
+        { name: 'Play Ground', path: '/', icon: '🎮' },
         { name: 'Discuss', path: '/discuss', icon: '🗨️' },
-        { name: 'Shop', path: '/shop', icon: '⚙️' },
+        { name: 'Shop', path: '/shop', icon: '🛍️' },
+        { name: 'User', path: '/auth/user', icon: '👤' },
         { name: 'Parents', path: '/auth/parent', icon: '🛡️' },
         { name: 'Teacher', path: '/auth/teacher', icon: '🎓' },
         { name: 'Admin', path: '/auth/admin', icon: '⚙️' },
@@ -22,6 +23,10 @@ const Layout = () => {
         <div className="min-h-screen flex flex-col font-body text-gray-700 bg-[var(--color-leo-bg)] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
             {/* Header - White & Clean per reference */}
             <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+                {/* Announcement Banner (Universal Message) */}
+                <div id="universal-announcement" className="hidden bg-indigo-600 text-white py-2 text-center text-xs font-bold animate-pulse">
+                    🚀 New Feature Alert: Check out the upgraded Cats Playground!
+                </div>
                 <div className="container mx-auto px-4 h-20 flex justify-between items-center">
 
                     {/* Logo Area */}

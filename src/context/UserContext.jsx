@@ -21,7 +21,17 @@ export const UserProvider = ({ children }) => {
 
                     // If no profile (first login), create one
                     if (!userProfile) {
-                        userProfile = await createUserProfile(currentUser.uid, currentUser.isAnonymous);
+                        // Check if we have registration data in session/global (passed via login results often)
+                        // For the AuthPortal flow, we might need a way to pass this.
+                        // For now, use data on the user object or defaults.
+                        userProfile = await createUserProfile(currentUser.uid, currentUser.isAnonymous, {
+                            email: currentUser.email,
+                            role: window.pendingRole || 'User',
+                            username: window.pendingUsername || 'User'
+                        });
+                        // Clear pending data
+                        delete window.pendingRole;
+                        delete window.pendingUsername;
                     }
 
                     setProfile(userProfile);
