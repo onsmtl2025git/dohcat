@@ -9,9 +9,9 @@ export const createUserProfile = async (uid, isAnonymous = true, extraData = {})
         const newProfile = {
             uid,
             isAnonymous,
-            username: extraData.username || (isAnonymous ? 'Guest Explorer' : 'New User'),
+            username: extraData.username || (isAnonymous ? 'Guest Explorer' : 'New Kid'),
             email: extraData.email || 'N/A',
-            role: extraData.role || 'User',
+            role: extraData.role || 'Kid',
             level: 1,
             xp: 0,
             coins: 0,

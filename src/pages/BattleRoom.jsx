@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { subscribeToBattle, findBattleByCode } from '../services/battleService';
+import { subscribeToBattle, findBattleByCode, ensureBattleForQuiz } from '../services/battleService';
+import { findQuizByBattleCode } from '../services/quizService';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 
@@ -29,26 +30,42 @@ const BattleRoom = () => {
         let unsub = () => { };
 
         const init = async () => {
-            // First try direct ID
+            // 1. Try subscribing as a direct Firestore ID
             unsub = subscribeToBattle(battleId, async (data) => {
-                if (!data) {
-                    // Try code lookup if not found
-                    const byCode = await findBattleByCode(battleId);
-                    if (byCode) {
-                        nav(`/battle/${byCode.id}`, { replace: true });
-                    } else {
-                        alert("Battle not found!");
-                        nav('/');
-                    }
-                } else {
+                if (data) {
                     setBattle(data);
+                } else {
+                    // 2. If ID not found, check if it's a valid 6-digit code format
+                    if (/^\d{6}$/.test(battleId)) {
+                        // A. Check if Battle ALREADY exists for this code
+                        const existingBattle = await findBattleByCode(battleId);
+
+                        if (existingBattle) {
+                            nav(`/battle/${existingBattle.id}`, { replace: true });
+                            return;
+                        }
+
+                        // B. If NO Battle, checking if it's a valid Quiz Code to START one?
+                        const relatedQuiz = await findQuizByBattleCode(battleId);
+
+                        if (relatedQuiz && user) { // Must be logged in to host/start? Or anon?
+                            // Auto-create/Start the battle as the first joiner (Host)
+                            const newBattle = await ensureBattleForQuiz(relatedQuiz, user);
+                            nav(`/battle/${newBattle.id}`, { replace: true });
+                        } else {
+                            // C. Truly Invalid Code
+                            // alert("Battle Code not found or invalid!");
+                            // nav('/');
+                            // Or stay on "Waiting" screen if we want to be passive
+                        }
+                    }
                 }
             });
         };
 
         init();
         return () => unsub();
-    }, [battleId, nav]);
+    }, [battleId, nav, user]); // Added user dependency to ensure we have profile for hosting
 
     // Timer Logic
     useEffect(() => {
@@ -76,7 +93,20 @@ const BattleRoom = () => {
         });
     };
 
-    if (!battle) return <div className="p-10 text-center font-bold text-gray-400">Loading Arena...</div>;
+    if (!battle) {
+        return (
+            <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+                <div className="glass-card p-8 bg-white text-center max-w-md w-full animate-pulse">
+                    <div className="text-6xl mb-4">⏳</div>
+                    <h2 className="text-2xl font-bold text-gray-800 mb-2">Waiting for Host...</h2>
+                    <p className="text-gray-500 mb-6">The battle haven't started yet.</p>
+                    <div className="bg-gray-100 px-6 py-3 rounded-xl font-mono text-2xl font-bold tracking-widest text-indigo-600 border border-gray-200">
+                        {battleId}
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     const isHost = user?.uid === battle.hostId;
     const sortedPlayers = [...(battle.players || [])].sort((a, b) => b.score - a.score);

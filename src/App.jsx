@@ -30,14 +30,15 @@ function App() {
         <Route path="parent" element={<UnifiedDashboard role="Parents" themeColor="cyan" />} />
         <Route path="admin" element={<UnifiedDashboard role="Admin" themeColor="purple" />} />
         <Route path="teacher" element={<UnifiedDashboard role="Teacher" themeColor="emerald" />} />
-        <Route path="user" element={<UnifiedDashboard role="User" themeColor="orange" />} />
+        {/* Renamed User -> Kid */}
+        <Route path="kid" element={<UnifiedDashboard role="Kid" themeColor="orange" />} />
       </Route>
 
       {/* Auth Portals (Full Screen / No Layout) */}
       <Route path="/auth/parent" element={<AuthPortal role="Parents" themeColor="cyan" redirectPath="/parent" />} />
       <Route path="/auth/admin" element={<AuthPortal role="Admin" themeColor="purple" redirectPath="/admin" />} />
       <Route path="/auth/teacher" element={<AuthPortal role="Teacher" themeColor="emerald" redirectPath="/teacher" />} />
-      <Route path="/auth/user" element={<AuthPortal role="User" themeColor="orange" redirectPath="/" />} />
+      <Route path="/auth/kid" element={<AuthPortal role="Kid" themeColor="orange" redirectPath="/kid" />} />
     </Routes>
   )
 }

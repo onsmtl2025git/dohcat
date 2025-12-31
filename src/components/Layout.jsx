@@ -13,7 +13,7 @@ const Layout = () => {
         { name: 'Play Ground', path: '/', icon: '🎮' },
         { name: 'Discuss', path: '/discuss', icon: '🗨️' },
         { name: 'Shop', path: '/shop', icon: '🛍️' },
-        { name: 'User', path: '/auth/user', icon: '👤' },
+        { name: 'Kids', path: '/auth/kid', icon: '👤' },
         { name: 'Parents', path: '/auth/parent', icon: '🛡️' },
         { name: 'Teacher', path: '/auth/teacher', icon: '🎓' },
         { name: 'Admin', path: '/auth/admin', icon: '⚙️' },
@@ -57,35 +57,9 @@ const Layout = () => {
                         ))}
                     </nav>
 
-                    {/* User Profile Pill */}
+                    {/* User Profile Pill - REMOVED per user request */}
                     <div className="flex items-center gap-4">
-                        {!loading && profile ? (
-                            <button
-                                onClick={() => setIsAuthModalOpen(true)}
-                                className="flex items-center gap-3 px-4 py-2 bg-gray-100 rounded-full border border-gray-200 hover:bg-gray-200 transition-colors shadow-sm"
-                            >
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xl" title="Your Companion">
-                                        {profile.emojis && profile.emojis[0] ? profile.emojis[0] : '🐱'}
-                                    </span>
-                                    <div className="flex flex-col items-start leading-none">
-                                        <span className="text-xs font-bold text-gray-500 break-keep">
-                                            {profile.email?.split('@')[0] || 'User'}
-                                        </span>
-                                        <span className="text-[10px] text-gray-400 font-bold">
-                                            {profile.coins || 0} RP
-                                        </span>
-                                    </div>
-                                </div>
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => setIsAuthModalOpen(true)}
-                                className="px-5 py-2 bg-[var(--color-leo-primary)] text-white font-bold rounded-full hover:opacity-90 transition shadow-sm"
-                            >
-                                Login
-                            </button>
-                        )}
+                        {/* Status removed. Identity is now in Sidebar only. */}
                     </div>
                 </div>
             </header>

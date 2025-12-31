@@ -4,9 +4,20 @@ import {
     getDocs,
     query,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    where
 } from "firebase/firestore";
 import { db } from "../firebase";
+
+export const findQuizByBattleCode = async (code) => {
+    const q = query(collection(db, "quizzes"), where("battleCode", "==", code));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+        const doc = snapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+    }
+    return null;
+};
 
 export const subscribeToQuizzes = (callback) => {
     const q = query(collection(db, "quizzes"), orderBy("createdAt", "desc"));

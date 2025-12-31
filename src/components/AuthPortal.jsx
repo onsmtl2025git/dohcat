@@ -96,7 +96,7 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                         {role === 'Parents' && '🛡️'}
                         {role === 'Admin' && '⚙️'}
                         {role === 'Teacher' && '🎓'}
-                        {role === 'User' && '🐱'}
+                        {role === 'Kid' && '🐱'}
                     </span>
                 </div>
 
@@ -105,7 +105,7 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                     {role === 'Parents' && "Manage your child's learning universe."}
                     {role === 'Admin' && "Control panel for LeoLearn platform."}
                     {role === 'Teacher' && "Create and manage classroom quizzes."}
-                    {role === 'User' && "Login to start your adventure!"}
+                    {role === 'Kid' && "Login to start your adventure!"}
                 </p>
 
                 {error && (
@@ -158,14 +158,12 @@ const AuthPortal = ({ role, themeColor, redirectPath }) => {
                 </form>
 
                 <div className="mt-6 text-center">
-                    {role !== 'Admin' && (
-                        <button
-                            onClick={() => setIsLogin(!isLogin)}
-                            className={`${theme.text} font-bold hover:underline text-sm`}
-                        >
-                            {isLogin ? 'New here? Create an Account' : 'Already have an account? Log In'}
-                        </button>
-                    )}
+                    <button
+                        onClick={() => setIsLogin(!isLogin)}
+                        className={`${theme.text} font-bold hover:underline text-sm`}
+                    >
+                        {isLogin ? 'New here? Create an Account' : 'Already have an account? Log In'}
+                    </button>
                 </div>
 
                 <div className="mt-8">

@@ -4,9 +4,10 @@ import { useUser } from '../context/UserContext';
 import { createQuiz } from '../services/quizService';
 import { getAllUsers, deleteItem, updateItem, getAllPosts, getAllQuizzes } from '../services/adminService';
 import AiGeneratorModal from '../components/AiGeneratorModal';
+import { createUserProfile } from '../services/userService';
 
 const UnifiedDashboard = ({ role, themeColor }) => {
-    const { user } = useUser();
+    const { user, profile, loading: userLoading } = useUser();
     const nav = useNavigate();
     const [activeTab, setActiveTab] = useState('overview'); // overview, create, library, users
     const [creationMode, setCreationMode] = useState('manual'); // manual, ai
@@ -48,35 +49,87 @@ const UnifiedDashboard = ({ role, themeColor }) => {
     const theme = themes[themeColor] || themes['cyan'];
 
     // --- Effects ---
+    // --- Debug Visibility ---
+    const [debugInfo, setDebugInfo] = useState({ myRole: '...', targetRole: '...' });
+    const [accessDenied, setAccessDenied] = useState(false);
     const [showUserModal, setShowUserModal] = useState(false);
     const [editingUser, setEditingUser] = useState(null);
 
     useEffect(() => {
-        if (role === 'Admin') {
-            if (activeTab === 'users') fetchUsers();
-            if (activeTab === 'contents') fetchContents();
+        if (userLoading) return; // Wait for profile
+
+        // Security Check
+        if (!user) {
+            nav('/');
+            return;
         }
-        if (activeTab === 'create' || activeTab === 'overview') {
-            fetchMyQuizzes();
+
+        const currentRole = profile?.role;
+        setDebugInfo({ myRole: currentRole, targetRole: role });
+
+        // Normalization for comparison
+        const normCurrent = String(currentRole || '').toLowerCase().trim();
+        const normTarget = String(role || '').toLowerCase().trim();
+
+        // 1. Admin Override: Admin can access ALL dashboards (optional, but usually helpful)
+        // For now, we stick to strict separation as requested.
+
+        // 2. Strict Check
+        if (normCurrent !== normTarget) {
+            console.log(`RBAC BLOCKED: '${normCurrent}' tried to access '${normTarget}'`);
+            setAccessDenied(true);
+        } else {
+            console.log(`RBAC ALLOWED: '${normCurrent}' matches '${normTarget}'`);
+            setAccessDenied(false);
         }
-    }, [activeTab, role]);
+
+    }, [user, profile, userLoading, role, nav]);
+
+    // ... (Access Denied Render Block is here, no change needed) ...
+
+    useEffect(() => {
+        // Fetch data if user is loaded. The accessDenied check handles security.
+        // We only fetch if NOT denied to avoid wasted calls.
+        if (!userLoading && !accessDenied) {
+            if (activeTab === 'users' && role === 'Admin') fetchUsers();
+            if (activeTab === 'contents' && role === 'Admin') fetchContents();
+            if (activeTab === 'create' || activeTab === 'overview') fetchMyQuizzes();
+        }
+    }, [activeTab, role, profile, userLoading, accessDenied]);
 
     const fetchUsers = async () => {
-        const users = await getAllUsers();
-        setUserList(users);
+        try {
+            console.log("Fetching users...");
+            const users = await getAllUsers();
+            console.log("Users fetched:", users);
+            setUserList(users);
+        } catch (error) {
+            console.error("Error fetching users:", error);
+            alert(`Failed to load users: ${error.message}`);
+        }
     };
 
     const fetchContents = async () => {
-        const quizzes = await getAllQuizzes();
-        const posts = await getAllPosts();
-        setContentList({ quizzes, posts });
+        try {
+            console.log("Fetching contents...");
+            const quizzes = await getAllQuizzes();
+            const posts = await getAllPosts();
+            setContentList({ quizzes, posts });
+        } catch (error) {
+            console.error("Error fetching contents:", error);
+            // alert(`Failed to load contents: ${error.message}`);
+        }
     };
 
     const fetchMyQuizzes = async () => {
         if (!user) return;
-        const quizzes = await getAllQuizzes();
-        // Match creatorId from quizService
-        setMyQuizzes(quizzes.filter(q => q.creatorId === user.uid));
+        try {
+            const quizzes = await getAllQuizzes();
+            // Match creatorId from quizService
+            setMyQuizzes(quizzes.filter(q => q.creatorId === user.uid));
+        } catch (error) {
+            console.error("Error fetching my quizzes:", error);
+        }
     };
 
     // --- Actions ---
@@ -111,7 +164,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
     };
 
     const handleAiGenerated = (newQuestions) => {
-        setQuestions(newQuestions);
+        setDraftQuestions(prev => [...prev, ...newQuestions]);
         setCreationMode('manual'); // Switch to manual to review
         alert("✨ Questions generated! Please review and publish.");
     };
@@ -220,16 +273,22 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                 await updateItem("users", editingUser.id, editingUser);
             } else {
                 // Create new (Manual creation)
-                // Note: This creates a Firestore Profile but NOT a Firebase Auth login credential (requires Admin SDK)
                 const newId = 'manual_' + Math.floor(100000 + Math.random() * 900000);
-                await createUserProfile(newId, false, editingUser);
+                // Ensure we don't pass undefined values
+                const userData = {
+                    username: editingUser.username || 'New User',
+                    email: editingUser.email || 'N/A',
+                    role: editingUser.role || 'User',
+                    disabled: false
+                };
+                await createUserProfile(newId, false, userData);
             }
             setShowUserModal(false);
             fetchUsers();
             alert("User saved successfully!");
         } catch (error) {
             console.error(error);
-            alert("Failed to save user.");
+            alert(`Failed to save user: ${error.message}`);
         }
     };
 
@@ -239,6 +298,74 @@ const UnifiedDashboard = ({ role, themeColor }) => {
             fetchUsers(); // Refresh
         }
     };
+
+    // --- Access Denied Render ---
+    if (accessDenied) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="bg-white rounded-[2rem] shadow-xl p-12 max-w-lg text-center border-t-8 border-red-500">
+                    <div className="text-6xl mb-6">🛑</div>
+                    <h1 className="text-3xl font-black text-gray-800 mb-2">Access Restricted</h1>
+                    <p className="text-gray-500 font-medium mb-8">
+                        You are logged in as a <span className="text-indigo-600 font-bold">{profile?.role || 'User'}</span>,
+                        but you are trying to access the <span className="text-red-500 font-bold">{role} Dashboard</span>.
+                    </p>
+
+                    <div className="bg-red-50 text-red-600 p-4 rounded-xl text-sm font-bold mb-8">
+                        Strict role enforcement is active. Please return to your designated area.
+                    </div>
+
+                    <button
+                        onClick={() => {
+                            const roleMap = {
+                                'Admin': '/admin',
+                                'Teacher': '/teacher',
+                                'Parents': '/parent',
+                                'Kid': '/kid'
+                            };
+                            const correctPath = roleMap[profile?.role] || '/';
+                            nav(correctPath);
+                        }}
+                        className="w-full py-4 bg-gray-900 text-white font-black rounded-2xl shadow-lg hover:bg-black transition transform active:scale-95"
+                    >
+                        Go to My Dashboard ➜
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // --- Access Disabled / Pending Render ---
+    if (profile?.disabled) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+                <div className="bg-white rounded-[2rem] shadow-xl p-12 max-w-lg text-center border-t-8 border-gray-400">
+                    <div className="text-6xl mb-6">⏳</div>
+                    <h1 className="text-3xl font-black text-gray-800 mb-2">Account Pending</h1>
+                    <p className="text-gray-500 font-medium mb-8">
+                        Your account is currently <span className="text-red-500 font-bold">Inactive</span>.
+                        {profile?.role === 'Admin' && <br />}
+                        {profile?.role === 'Admin' && "New Admin accounts require approval from an existing Administrator."}
+                    </p>
+
+                    <div className="bg-orange-50 text-orange-600 p-4 rounded-xl text-sm font-bold mb-8">
+                        Please contact an Administrator to activate your account.
+                    </div>
+
+                    <button
+                        onClick={async () => {
+                            const { logout } = await import('../services/authService');
+                            await logout();
+                            nav('/');
+                        }}
+                        className="w-full py-4 bg-gray-200 text-gray-600 font-black rounded-2xl shadow-sm hover:bg-gray-300 transition"
+                    >
+                        Log Out 🚪
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 flex">
@@ -290,6 +417,31 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                         </>
                     )}
                 </nav>
+
+                {/* User Identity Section */}
+                <div className="p-4 border-t border-gray-100">
+                    <div className="flex items-center gap-3 mb-3 px-2">
+                        <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-xl shadow-sm">
+                            {profile?.emojis?.[0] || '👤'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                            <h4 className="font-bold text-gray-800 text-sm truncate">{profile?.username || 'Kid'}</h4>
+                            <span className={`text-[10px] font-black px-2 py-0.5 rounded uppercase ${role === 'Admin' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-500'}`}>
+                                {profile?.role || 'Guest'}
+                            </span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={async () => {
+                            const { logout } = await import('../services/authService');
+                            await logout();
+                            nav('/');
+                        }}
+                        className="w-full flex items-center justify-center gap-2 py-2 bg-red-50 text-red-500 font-bold rounded-xl hover:bg-red-100 transition text-xs"
+                    >
+                        🚪 Log Out
+                    </button>
+                </div>
             </aside>
 
             {/* Main Content */}
@@ -316,7 +468,20 @@ const UnifiedDashboard = ({ role, themeColor }) => {
 
                 {activeTab === 'users' && role === 'Admin' && (
                     <div className="max-w-6xl mx-auto">
-                        <h1 className="text-3xl font-bold text-gray-800 mb-6">User Management</h1>
+                        <div className="flex justify-between items-center mb-6">
+                            <h1 className="text-3xl font-bold text-gray-800">
+                                User Management
+                                <span className="ml-4 text-sm font-medium text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+                                    {userList.length} Accounts
+                                </span>
+                            </h1>
+                            <button
+                                onClick={fetchUsers}
+                                className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition text-sm flex items-center gap-2"
+                            >
+                                🔄 Refresh List
+                            </button>
+                        </div>
                         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                             <table className="w-full text-left">
                                 <thead className="bg-gray-50 border-b border-gray-100">
@@ -361,26 +526,49 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                                     {u.disabled ? 'Disabled' : 'Active'}
                                                 </span>
                                             </td>
-                                            <td className="p-4">
-                                                <td className="p-4 text-right">
-                                                    <div className="flex justify-end gap-2">
+                                            <td className="p-4 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    {u.disabled ? (
                                                         <button
-                                                            onClick={() => {
-                                                                setEditingUser(u);
-                                                                setShowUserModal(true);
+                                                            onClick={async () => {
+                                                                if (confirm(`Approve access for ${u.username}?`)) {
+                                                                    await updateItem("users", u.id, { disabled: false });
+                                                                    fetchUsers();
+                                                                }
                                                             }}
-                                                            className="text-indigo-500 hover:text-indigo-700 font-bold text-xs"
+                                                            className="text-green-500 hover:text-green-700 font-bold text-xs bg-green-50 px-2 py-1 rounded"
                                                         >
-                                                            Edit
+                                                            ✅ Approve
                                                         </button>
+                                                    ) : (
                                                         <button
-                                                            onClick={() => handleDeleteUser(u.id)}
-                                                            className="text-red-500 hover:text-red-700 font-bold text-xs"
+                                                            onClick={async () => {
+                                                                if (confirm(`Are you sure you want to DISABLE ${u.username}? They will be locked out.`)) {
+                                                                    await updateItem("users", u.id, { disabled: true });
+                                                                    fetchUsers();
+                                                                }
+                                                            }}
+                                                            className="text-orange-500 hover:text-orange-700 font-bold text-xs bg-orange-50 px-2 py-1 rounded"
                                                         >
-                                                            Delete
+                                                            🚫 Block
                                                         </button>
-                                                    </div>
-                                                </td>
+                                                    )}
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingUser(u);
+                                                            setShowUserModal(true);
+                                                        }}
+                                                        className="text-indigo-500 hover:text-indigo-700 font-bold text-xs"
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteUser(u.id)}
+                                                        className="text-red-500 hover:text-red-700 font-bold text-xs"
+                                                    >
+                                                        Delete
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
@@ -822,10 +1010,10 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                 <label className="block text-sm font-bold text-gray-500 mb-1">Role</label>
                                 <select
                                     className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold outline-none focus:ring-2 focus:ring-indigo-100"
-                                    value={editingUser.role || 'User'}
+                                    value={editingUser.role || 'Kid'}
                                     onChange={e => setEditingUser({ ...editingUser, role: e.target.value })}
                                 >
-                                    <option value="User">User</option>
+                                    <option value="Kid">Kid</option>
                                     <option value="Parents">Parents</option>
                                     <option value="Teacher">Teacher</option>
                                     <option value="Admin">Admin</option>
@@ -856,7 +1044,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                     type="submit"
                                     className="px-8 py-3 bg-indigo-500 text-white font-black rounded-xl hover:bg-indigo-600 transition shadow-lg shadow-indigo-200"
                                 >
-                                    Confirm & Save
+                                    Update Database
                                 </button>
                             </div>
                         </form>
