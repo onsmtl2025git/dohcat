@@ -93,9 +93,9 @@ const Discuss = () => {
     const filteredPosts = posts.filter(p => p.title.toLowerCase().includes(searchQuery.toLowerCase()));
 
     return (
-        <div className="min-h-screen bg-gray-100">
+        <div className="min-h-screen bg-transparent">
             {/* 1. Header Row (Sticky) */}
-            <div className="sticky top-0 z-40 bg-white border-b border-gray-200 shadow-sm">
+            <div className="sticky top-20 z-40 bg-white/60 backdrop-blur-md border-b border-white/50 shadow-sm transition-all">
                 <div className="max-w-[1600px] mx-auto px-4 h-16 flex items-center justify-between gap-4">
                     {/* Logo Area */}
                     <div className="flex items-center gap-2 cursor-pointer" onClick={() => window.location.reload()}>
@@ -176,9 +176,9 @@ const Discuss = () => {
 
                     {/* LEFT SIDEBAR (Navigation) - Col 1-2 (Hidden on mobile) */}
                     <div className="hidden lg:block col-span-2 space-y-4">
-                        <div className="bg-white rounded-2xl p-2 shadow-sm border border-gray-100">
+                        <div className="glass-panel p-2 rounded-[1.5rem] shadow-sm border border-white/50">
                             <nav className="space-y-1">
-                                <a href="#" className="flex items-center gap-3 px-4 py-2 bg-gray-100 text-gray-900 rounded-xl font-bold text-sm">
+                                <a href="#" className="flex items-center gap-3 px-4 py-2 bg-white/50 text-gray-900 rounded-xl font-bold text-sm shadow-sm border border-white/60">
                                     <span>🏠</span> Home
                                 </a>
                                 <a href="#" className="flex items-center gap-3 px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-xl font-bold text-sm transition">
@@ -218,7 +218,7 @@ const Discuss = () => {
                                 const isGuestAuthor = !user && post.authorId?.startsWith('guest_');
 
                                 return (
-                                    <div key={post.id} className={`bg-white rounded-2xl border ${post.isPinned ? 'border-yellow-300 ring-4 ring-yellow-50' : 'border-gray-200'} hover:border-gray-300 transition overflow-hidden group`}>
+                                    <div key={post.id} className={`glass-panel p-0 rounded-[2rem] border-2 ${post.isPinned ? 'border-yellow-300 ring-4 ring-yellow-50' : 'border-white/40'} hover:border-gray-200 hover:-translate-y-1 hover:shadow-lg transition duration-300 overflow-hidden group`}>
                                         <div className="flex">
                                             {/* Vote Column (Static Mock) */}
                                             <div className="w-10 bg-gray-50/50 flex flex-col items-center py-3 gap-1 border-r border-gray-100 text-gray-500">
@@ -278,7 +278,7 @@ const Discuss = () => {
                     {/* RIGHT SIDEBAR - Col 10-12 (Community Info) */}
                     <div className="hidden lg:block col-span-3 space-y-4">
                         {/* About Community */}
-                        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm">
+                        <div className="glass-panel rounded-[2rem] border border-white/50 overflow-hidden shadow-md">
                             <div className="h-12 bg-blue-500"></div>
                             <div className="p-4 relative">
                                 <div className="absolute -top-6 left-4 w-12 h-12 bg-white rounded-full p-1 shadow-md">
@@ -312,7 +312,7 @@ const Discuss = () => {
                         </div>
 
                         {/* Rankings Widget */}
-                        <div className="bg-white rounded-2xl border border-gray-200 p-4 shadow-sm">
+                        <div className="glass-panel rounded-[2rem] border border-white/50 p-4 shadow-md">
                             <h3 className="font-bold text-gray-600 text-xs uppercase tracking-widest mb-4">Top Contributors</h3>
                             <div className="space-y-3">
                                 {[1, 2, 3, 4, 5].map(n => (

@@ -8,58 +8,69 @@ const Layout = () => {
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const location = useLocation();
 
-    // Menu Items Configuration
+    // Menu Items Configuration with Material Icons
     const MENU_ITEMS = [
-        { name: 'Play Ground', path: '/', icon: '🎮' },
-        { name: 'Discuss', path: '/discuss', icon: '🗨️' },
-        { name: 'Shop', path: '/shop', icon: '🛍️' },
-        { name: 'Kids', path: '/auth/kid', icon: '👤' },
-        { name: 'Parents', path: '/auth/parent', icon: '🛡️' },
-        { name: 'Teacher', path: '/auth/teacher', icon: '🎓' },
-        { name: 'Admin', path: '/auth/admin', icon: '⚙️' },
+        { name: 'Playground', path: '/', matIcon: 'stadia_controller' },
+        { name: 'Discuss', path: '/discuss', matIcon: 'chat_bubble' },
+        { name: 'Shop', path: '/shop', matIcon: 'shopping_bag' },
+        { name: 'Kids', path: '/auth/kid', matIcon: 'child_care' },
+        { name: 'Parents', path: '/auth/parent', matIcon: 'shield_person' },
+        { name: 'Teacher', path: '/auth/teacher', matIcon: 'school' },
+        { name: 'Admin', path: '/auth/admin', matIcon: 'settings' },
     ];
 
     return (
-        <div className="min-h-screen flex flex-col font-body text-gray-700 bg-[var(--color-leo-bg)] bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
-            {/* Header - White & Clean per reference */}
-            <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-                {/* Announcement Banner (Universal Message) */}
-                <div id="universal-announcement" className="hidden bg-indigo-600 text-white py-2 text-center text-xs font-bold animate-pulse">
-                    🚀 New Feature Alert: Check out the upgraded Cats Playground!
-                </div>
-                <div className="container mx-auto px-4 h-20 flex justify-between items-center">
+        <div className="min-h-screen flex flex-col font-body bg-transparent">
+            {/* New Floating Navbar */}
+            {/* Restored Full-Width Header with New Styles */}
+            <header className="sticky top-0 z-50 bg-white/80 dark:bg-gray-900/80 backdrop-blur-md border-b border-white/50 shadow-sm animate-slide-down">
+                <div className="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
-                    {/* Logo Area */}
-                    <Link to="/" className="flex items-center gap-2 group">
-                        {/* Custom Logo Box - Cyan 'L' */}
-                        <div className="w-10 h-10 bg-[var(--color-leo-primary)] rounded-xl flex items-center justify-center text-white font-bold text-2xl font-display shadow-sm group-hover:scale-105 transition-transform">
+                    {/* Logo Section */}
+                    <Link to="/" className="flex items-center gap-3 group">
+                        <div className="w-10 h-10 bg-[var(--color-primary)] rounded-xl flex items-center justify-center text-white font-black text-2xl shadow-3d-white border-2 border-white transform group-hover:rotate-12 transition-transform duration-300">
                             L
                         </div>
-                        <span className="text-2xl font-bold text-[var(--color-leo-primary)] font-display tracking-tight hover:opacity-90 transition-opacity">
+                        <span className="text-2xl font-black text-gray-800 dark:text-white tracking-tight group-hover:text-[var(--color-primary)] transition-colors">
                             LeoLearn
                         </span>
                     </Link>
 
-                    {/* Navigation - Centered Items */}
-                    <nav className="hidden md:flex items-center space-x-8">
+                    {/* Desktop Navigation */}
+                    <nav className="hidden md:flex items-center gap-2">
                         {MENU_ITEMS.map((item) => (
                             <Link
                                 key={item.name}
                                 to={item.path}
-                                className={`flex items-center gap-2 font-bold transition-colors ${location.pathname === item.path
-                                    ? 'text-gray-900'
-                                    : 'text-gray-500 hover:text-gray-900'
+                                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-all ${location.pathname === item.path
+                                        ? 'bg-[var(--color-primary)] text-white shadow-md transform scale-105'
+                                        : 'text-gray-600 dark:text-gray-300 hover:bg-white/50 hover:text-[var(--color-primary)]'
                                     }`}
                             >
-                                <span className="text-xl opacity-80">{item.icon}</span>
-                                <span>{item.name}</span>
+                                <span className={`material-symbols-rounded text-lg ${location.pathname === item.path ? 'animate-pulse' : ''}`}>
+                                    {item.matIcon}
+                                </span>
+                                {item.name}
                             </Link>
                         ))}
                     </nav>
 
-                    {/* User Profile Pill - REMOVED per user request */}
-                    <div className="flex items-center gap-4">
-                        {/* Status removed. Identity is now in Sidebar only. */}
+                    {/* User Profile / Status */}
+                    <div
+                        className="flex items-center gap-3 bg-white/50 hover:bg-white/80 dark:bg-gray-800/50 pl-2 pr-4 py-1.5 rounded-full border border-white/60 shadow-sm transition-all cursor-pointer group"
+                        onClick={() => setIsAuthModalOpen(true)}
+                    >
+                        <div className="w-9 h-9 rounded-full bg-yellow-200 border-2 border-yellow-400 flex items-center justify-center text-lg shadow-inner group-hover:scale-110 transition-transform">
+                            {profile?.emojis?.[0] || '🐱'}
+                        </div>
+                        <div className="flex flex-col leading-none">
+                            <span className="text-xs font-black text-gray-800 dark:text-white">
+                                {profile ? (profile.username || 'Friend') : 'Guest'}
+                            </span>
+                            <span className="text-[10px] text-[var(--color-primary)] font-bold uppercase tracking-wider">
+                                {profile ? `Lvl ${profile.level || 1}` : 'Login'}
+                            </span>
+                        </div>
                     </div>
                 </div>
             </header>

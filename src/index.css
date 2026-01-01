@@ -4,15 +4,57 @@
     --color-leo-bg: #fdfbf7;
     /* Warm off-white */
     --color-leo-primary: #8B5CF6;
-    /* Soft Purple */
-    --color-leo-secondary: #EC4899;
-    /* Soft Pink */
-    --color-leo-accent: #F59E0B;
-    /* Warm Amber */
-    --color-leo-surface: #ffffff;
+    /* Soft Purple - Keeping original as secondary reference if needed, or replace if strict */
+    /* New Design Colors */
+    --color-primary: #00B4D8;
+    --color-background-light: #F3F4F6;
+    --color-background-dark: #111827;
+    --color-card-cyan: #22D3EE;
+    --color-card-lime: #D4E157;
+    --color-card-pink: #F48FB1;
+    --color-card-orange: #FFB74D;
+    --color-card-purple: #A78BFA;
+    --color-card-red: #FF5722;
 
     --font-display: "Fredoka", sans-serif;
     --font-body: "Nunito", sans-serif;
+
+    /* Custom Shadows for 3D effect */
+    --shadow-3d-cyan: 0px 10px 0px 0px #0891b2, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-orange: 0px 10px 0px 0px #f57c00, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-lime: 0px 10px 0px 0px #afb42b, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-purple: 0px 10px 0px 0px #7e22ce, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-pink: 0px 10px 0px 0px #d81b60, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-red: 0px 10px 0px 0px #c62828, 0px 10px 20px rgba(0, 0, 0, 0.2);
+    --shadow-3d-white: 0px 6px 0px 0px #e5e7eb, 0px 4px 6px rgba(0, 0, 0, 0.1);
+
+    /* Animations */
+    --animate-wiggle: wiggle 0.3s ease-in-out infinite;
+    --animate-float: float 3s ease-in-out infinite;
+
+    @keyframes wiggle {
+
+        0%,
+        100% {
+            transform: rotate(-1deg);
+        }
+
+        50% {
+            transform: rotate(1deg);
+        }
+    }
+
+    @keyframes float {
+
+        0%,
+        100% {
+            transform: translateY(0);
+        }
+
+        50% {
+            transform: translateY(-5px);
+        }
+    }
 }
 
 /* Custom Utilities for Glassmorphism */
@@ -27,7 +69,10 @@
 }
 
 body {
-    background-color: var(--color-leo-bg);
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuCns8cQ6gdgzx-wBsfHq5s7G9ldFKA3WVRNX9fRx2tbsTl-OLjhKcp0v4PXWfzz8Pe06uzJv4GWAnhiVSc-m1Gr_xshRFAs9kAUTOOITm_TOURr4Ml6t4ITCifLNCoSVNWmL9b8DHRf8x5XLmMwyhKDqrCKFBeIAR3tImU72W1hplskgC0SBNer5PlrRj1aeOi_pW76c1Z4YZFQ2kxcl-3_zdvX0MxU_FOQu0VcqkCUAY1rZjIN1DT83oirGY5rqfPJ-i3KETy_Afi0);
+    background-size: cover;
+    background-attachment: fixed;
+    background-position: center;
     color: #4b5563;
     font-family: var(--font-body);
 }

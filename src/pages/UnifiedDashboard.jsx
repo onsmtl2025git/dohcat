@@ -368,9 +368,9 @@ const UnifiedDashboard = ({ role, themeColor }) => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 flex">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white border-r border-gray-200 hidden md:flex flex-col">
+        <div className="min-h-screen bg-transparent flex gap-6 p-6">
+            {/* Sidebar - Now Floating & Rounded */}
+            <aside className="w-72 glass-panel rounded-[2.5rem] border border-white/50 hidden md:flex flex-col shadow-xl h-[calc(100vh-3rem)] sticky top-6 overflow-hidden">
                 <div className="p-6">
                     <h2 className={`text-2xl font-bold ${theme.text} mb-1`}>{role} Panel</h2>
                     <p className="text-xs text-gray-400 font-bold uppercase tracking-wider">Dashboard</p>
@@ -419,7 +419,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                 </nav>
 
                 {/* User Identity Section */}
-                <div className="p-4 border-t border-gray-100">
+                <div className="p-4 border-t border-white/50">
                     <div className="flex items-center gap-3 mb-3 px-2">
                         <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-xl shadow-sm">
                             {profile?.emojis?.[0] || '👤'}
@@ -445,22 +445,31 @@ const UnifiedDashboard = ({ role, themeColor }) => {
             </aside>
 
             {/* Main Content */}
-            <main className="flex-1 p-8 overflow-y-auto">
+            <main className="flex-1 overflow-y-auto rounded-[2.5rem] scroll-smooth no-scrollbar">
                 {activeTab === 'overview' && (
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-800 mb-6">Welcome back!</h1>
+                        <h1 className="text-3xl font-black text-gray-800 mb-6 drop-shadow-sm">Welcome back!</h1>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="text-gray-400 text-sm font-bold uppercase mb-2">Total Quizzes</div>
-                                <div className="text-4xl font-bold text-gray-800">12</div>
+                            <div className="floating-card bg-[var(--color-card-cyan)] dark:bg-cyan-900 text-white p-6 rounded-[2rem] shadow-3d-cyan border-2 border-white/20 relative overflow-hidden group">
+                                <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="text-white/80 text-sm font-black uppercase mb-2">Total Quizzes</div>
+                                    <div className="text-5xl font-black">12</div>
+                                </div>
                             </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="text-gray-400 text-sm font-bold uppercase mb-2">Active Students</div>
-                                <div className="text-4xl font-bold text-gray-800">24</div>
+                            <div className="floating-card bg-[var(--color-card-purple)] dark:bg-purple-900 text-white p-6 rounded-[2rem] shadow-3d-purple border-2 border-white/20 relative overflow-hidden group">
+                                <div className="absolute -right-6 -top-6 w-24 h-24 bg-white/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="text-white/80 text-sm font-black uppercase mb-2">Active Students</div>
+                                    <div className="text-5xl font-black">24</div>
+                                </div>
                             </div>
-                            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-                                <div className="text-gray-400 text-sm font-bold uppercase mb-2">Avg Score</div>
-                                <div className="text-4xl font-bold text-gray-800">85%</div>
+                            <div className="floating-card bg-[var(--color-card-orange)] dark:bg-orange-800 text-white p-6 rounded-[2rem] shadow-3d-orange border-2 border-white/20 relative overflow-hidden group">
+                                <div className="absolute -right-10 -bottom-10 w-32 h-32 bg-yellow-300/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-500"></div>
+                                <div className="relative z-10">
+                                    <div className="text-white/80 text-sm font-black uppercase mb-2">Avg Score</div>
+                                    <div className="text-5xl font-black">85%</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -477,14 +486,14 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                             </h1>
                             <button
                                 onClick={fetchUsers}
-                                className="px-4 py-2 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition text-sm flex items-center gap-2"
+                                className="px-4 py-2 bg-white/50 text-gray-700 font-bold rounded-xl hover:bg-white transition text-sm flex items-center gap-2 shadow-sm border border-white/60"
                             >
                                 🔄 Refresh List
                             </button>
                         </div>
-                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        <div className="glass-panel rounded-[2rem] shadow-lg border-2 border-white/50 overflow-hidden">
                             <table className="w-full text-left">
-                                <thead className="bg-gray-50 border-b border-gray-100">
+                                <thead className="bg-white/50 border-b border-gray-100/50 backdrop-blur-sm">
                                     <tr>
                                         <th className="p-4 font-bold text-gray-600">User</th>
                                         <th className="p-4 font-bold text-gray-600">Email</th>
@@ -584,7 +593,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">Quizzes (Catpools)</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {contentList.quizzes?.map(q => (
-                                    <div key={q.id} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 group">
+                                    <div key={q.id} className="glass-panel p-4 rounded-2xl shadow-sm border border-white/50 group hover:scale-[1.02] transition-transform duration-300">
                                         <h3 className="font-bold text-gray-800 mb-1">{q.title}</h3>
                                         <p className="text-xs text-gray-400 mb-4 truncate">{q.description}</p>
                                         <div className="flex justify-between items-center">
@@ -603,9 +612,9 @@ const UnifiedDashboard = ({ role, themeColor }) => {
 
                         <div>
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">Discussion Posts</h2>
-                            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="glass-panel rounded-2xl shadow-sm border border-white/50 overflow-hidden">
                                 <table className="w-full text-left font-medium">
-                                    <thead className="bg-gray-50 border-b border-gray-100 text-xs text-gray-400 uppercase">
+                                    <thead className="bg-white/50 border-b border-gray-100/50 backdrop-blur-sm text-xs text-gray-400 uppercase">
                                         <tr>
                                             <th className="p-4">Post Title</th>
                                             <th className="p-4">Author</th>
@@ -614,7 +623,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                     </thead>
                                     <tbody>
                                         {contentList.posts?.map(p => (
-                                            <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                                            <tr key={p.id} className="border-b border-white/30 hover:bg-white/40 transition">
                                                 <td className="p-4 text-sm font-bold text-gray-700">
                                                     <div className="flex items-center gap-2">
                                                         {p.isPinned && <span className="text-yellow-500">📌</span>}
@@ -661,11 +670,11 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                         </div>
 
                         {/* Rewarding System Section */}
-                        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <div className="glass-panel p-8 rounded-3xl shadow-sm border border-white/50">
                             <h2 className="text-2xl font-bold text-gray-800 mb-6">User Rewards (RP)</h2>
                             <div className="space-y-4">
                                 {userList.map(u => (
-                                    <div key={u.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-2xl group">
+                                    <div key={u.id} className="flex items-center justify-between p-4 bg-white/60 rounded-2xl group border border-white/50 hover:shadow-md transition">
                                         <div className="flex items-center gap-3">
                                             <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center text-2xl shadow-sm">
                                                 {u.emojis?.[0] || '🐱'}
@@ -707,12 +716,12 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                         </div>
 
                         {/* Advertising Management Section */}
-                        <div className="bg-white p-8 rounded-3xl shadow-sm border border-gray-100">
+                        <div className="glass-panel p-8 rounded-3xl shadow-sm border border-white/50">
                             <h2 className="text-2xl font-bold text-gray-800 mb-4">Forum Advertisements</h2>
                             <div className="space-y-4">
-                                <div className="border-2 border-dashed border-gray-100 rounded-2xl p-6 text-center">
+                                <div className="border-2 border-dashed border-white/40 bg-white/30 rounded-2xl p-6 text-center">
                                     <p className="text-gray-400 text-sm font-bold mb-4">No active ads. Add a new banner!</p>
-                                    <button className="px-6 py-2 bg-gray-100 text-gray-600 font-bold rounded-xl hover:bg-gray-200 transition">+ Create Ad</button>
+                                    <button className="px-6 py-2 bg-white text-gray-600 font-bold rounded-xl hover:bg-gray-50 transition shadow-sm">+ Create Ad</button>
                                 </div>
                             </div>
                         </div>
@@ -724,23 +733,23 @@ const UnifiedDashboard = ({ role, themeColor }) => {
 
                         {/* COLUMN 1: Dashboard */}
                         <div className="space-y-6">
-                            <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
+                            <div className="glass-panel p-6 rounded-[2rem] shadow-sm border border-white/50">
                                 <h3 className="text-lg font-extrabold text-gray-800 mb-4 flex items-center gap-2">
                                     📊 Dashboard
                                 </h3>
                                 <div className="space-y-4">
-                                    <div className="bg-cyan-50 p-4 rounded-2xl">
+                                    <div className="bg-cyan-50/50 p-4 rounded-2xl border border-cyan-100">
                                         <div className="text-xs font-bold text-cyan-600 uppercase">Total Drafts</div>
                                         <div className="text-2xl font-black text-cyan-700">{draftQuestions.length}</div>
                                     </div>
-                                    <div className="bg-purple-50 p-4 rounded-2xl">
+                                    <div className="bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
                                         <div className="text-xs font-bold text-purple-600 uppercase">My Catpools</div>
                                         <div className="text-2xl font-black text-purple-700">{myQuizzes.length}</div>
                                     </div>
                                 </div>
                             </div>
 
-                            <div className="bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-3xl text-white shadow-lg">
+                            <div className="floating-card bg-gradient-to-br from-indigo-500 to-purple-600 p-6 rounded-[2rem] text-white shadow-3d-purple border-2 border-white/20">
                                 <h4 className="font-bold mb-2">Pro Tip! 💡</h4>
                                 <p className="text-sm opacity-90">Adding images to your questions makes them 3x more engaging for students!</p>
                             </div>
@@ -748,12 +757,13 @@ const UnifiedDashboard = ({ role, themeColor }) => {
 
                         {/* COLUMN 2-3: Manual Builder */}
                         <div className="lg:col-span-2 space-y-6">
-                            <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-gray-100">
+                            <div className="glass-panel p-8 rounded-[2.5rem] shadow-lg border-2 border-white/50 relative overflow-hidden">
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-purple-200/20 rounded-full blur-3xl -z-10"></div>
                                 <div className="flex justify-between items-center mb-6">
                                     <h2 className="text-2xl font-black text-gray-800">Manual Builder</h2>
                                     <button
                                         onClick={() => setShowAiModal(true)}
-                                        className="px-4 py-2 bg-purple-100 text-purple-600 font-bold rounded-full text-xs hover:bg-purple-200 transition"
+                                        className="px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white font-bold rounded-full text-xs shadow-md hover:scale-105 transition border-2 border-white/20"
                                     >
                                         AI ASSISTANT ✨
                                     </button>
@@ -793,7 +803,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                     <hr className="border-gray-50" />
 
                                     {/* New Question Section */}
-                                    <div className="bg-gray-50/50 p-6 rounded-3xl border border-gray-100 space-y-4">
+                                    <div className="bg-white/40 p-6 rounded-3xl border border-white/50 space-y-4">
                                         <h3 className="text-sm font-black text-gray-400 uppercase">
                                             {editingId ? "✏️ Edit Question" : "New Question"}
                                         </h3>
