@@ -17,6 +17,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
     const [description, setDescription] = useState('');
     const [catpoolImage, setCatpoolImage] = useState('');
     const [difficulty, setDifficulty] = useState('1x'); // 1x, 1.5x, 2x
+    const [isPublic, setIsPublic] = useState(true);
     const [loading, setLoading] = useState(false);
 
     // Draft System
@@ -214,6 +215,7 @@ const UnifiedDashboard = ({ role, themeColor }) => {
             options: q.options,
             correctAnswer: ['a', 'b', 'c', 'd'][q.correctIndex]
         }));
+        setIsPublic(quiz.isPublic !== false);
         setDraftQuestions(reloadedDrafts);
         alert("Catpool reloaded into builder for editing! ✏️");
     };
@@ -225,21 +227,32 @@ const UnifiedDashboard = ({ role, themeColor }) => {
 
         setLoading(true);
         try {
-            await createQuiz({
+            const quizData = {
                 title,
                 description,
                 difficulty,
                 imageUrl: catpoolImage,
-                // Map draft format to quiz service format
+                isPublic,
                 questions: draftQuestions.map(q => ({
                     text: q.text,
                     image: q.image,
                     options: q.options,
                     correctIndex: ['a', 'b', 'c', 'd'].indexOf(q.correctAnswer)
                 }))
-            }, user?.uid || 'anon');
-            alert("Catpool Published Successfully! 🚀");
+            };
+
+            if (editingQuizId) {
+                // Update existing
+                await updateItem("quizzes", editingQuizId, quizData);
+                alert("Catpool Updated Successfully! ✏️");
+            } else {
+                // Create new
+                await createQuiz(quizData, user?.uid || 'anon');
+                alert("Catpool Published Successfully! 🚀");
+            }
+
             setTitle('');
+            setEditingQuizId(null);
             setDescription('');
             setCatpoolImage('');
             setDraftQuestions([]);
@@ -797,6 +810,26 @@ const UnifiedDashboard = ({ role, themeColor }) => {
                                                 value={catpoolImage}
                                                 onChange={e => setCatpoolImage(e.target.value)}
                                             />
+                                        </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-xs font-black text-gray-400 uppercase ml-2">Visibility</label>
+                                            <div className="flex bg-gray-50 rounded-2xl p-1">
+                                                <button
+                                                    onClick={() => setIsPublic(true)}
+                                                    className={`flex-1 py-3 rounded-xl font-bold transition ${isPublic ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}
+                                                >
+                                                    🌍 Public
+                                                </button>
+                                                <button
+                                                    onClick={() => setIsPublic(false)}
+                                                    className={`flex-1 py-3 rounded-xl font-bold transition ${!isPublic ? 'bg-white shadow-sm text-indigo-600' : 'text-gray-400'}`}
+                                                >
+                                                    🔒 Private
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
 

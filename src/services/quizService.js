@@ -5,7 +5,9 @@ import {
     query,
     orderBy,
     onSnapshot,
-    where
+    where,
+    doc,
+    getDoc
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -15,6 +17,21 @@ export const findQuizByBattleCode = async (code) => {
     if (!snapshot.empty) {
         const doc = snapshot.docs[0];
         return { id: doc.id, ...doc.data() };
+    }
+    return null;
+    return null;
+};
+
+// Find quiz by direct ID
+export const findQuizById = async (id) => {
+    const docRef = doc(db, "quizzes", id);
+    const snapshot = await getDocs(query(collection(db, "quizzes"), where("__name__", "==", id)));
+    // Firestore getDoc is better for single ID, but sticking to existing pattern if possible.
+    // Actually getDoc is standard. Let's use getDoc.
+    // wait, I need to import doc and getDoc if not already. They are imported.
+    const fromGetDoc = await import("firebase/firestore").then(mod => mod.getDoc(docRef));
+    if (fromGetDoc.exists()) {
+        return { id: fromGetDoc.id, ...fromGetDoc.data() };
     }
     return null;
 };
@@ -28,13 +45,19 @@ export const subscribeToQuizzes = (callback) => {
 };
 
 export const createQuiz = async (quizData, userId) => {
-    // Generate a persistent 6-digit numeric code for this quiz's battle room
-    const battleCode = Math.floor(100000 + Math.random() * 900000).toString();
+    // 1. Generate a UNIQUE persistent 6-digit numeric code 
+    let battleCode = '';
+    let isUnique = false;
+    while (!isUnique) {
+        battleCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const existing = await findQuizByBattleCode(battleCode);
+        if (!existing) isUnique = true;
+    }
 
     const newQuiz = {
         ...quizData,
         creatorId: userId,
-        battleCode, // Persistent code
+        battleCode,
         createdAt: new Date(),
         plays: 0,
         likes: 0

@@ -21,49 +21,72 @@ export const UserProvider = ({ children }) => {
         }, 4000);
 
         const unsubscribe = subscribeToAuthChanges(async (currentUser) => {
-            clearTimeout(timer); // Clear timeout if we get a response
+            clearTimeout(timer);
             if (currentUser) {
                 setUser(currentUser);
-                try {
-                    // Try to get existing profile
-                    let userProfile = await getUserProfile(currentUser.uid);
+                // 1. Resolve loading IMMEDIATELY now that we have a UID.
+                // This prevents the whole app from hanging while Firestore fetches the profile.
+                setLoading(false);
 
-                    // If no profile (first login), create one
-                    if (!userProfile) {
-                        // Check if we have registration data in session/global (passed via login results often)
-                        // For the AuthPortal flow, we might need a way to pass this.
-                        // For now, use data on the user object or defaults.
+                try {
+                    const userProfile = await getUserProfile(currentUser.uid);
+                    if (userProfile) {
+                        setProfile(userProfile);
+                    } else if (currentUser.isAnonymous) {
+                        // 2. OPTIMISTIC GUEST SETUP: If new guest, set a stub immediately
+                        const stubProfile = {
+                            uid: currentUser.uid,
+                            isAnonymous: true,
+                            username: `Explorer #${currentUser.uid.slice(-4).toUpperCase()}`,
+                            role: 'Kid',
+                            level: 1,
+                            emojis: ['🐱'],
+                            isSyncing: true
+                        };
+                        setProfile(stubProfile);
+
+                        // 3. BACKGROUND SYNC: Create the actual profile without 'await'ing it for the UI
+                        createUserProfile(currentUser.uid, true).then(finalProfile => {
+                            setProfile(finalProfile);
+                        });
+                    } else {
+                        // Regular user first login
                         const pendingRole = window.pendingRole || 'Kid';
-                        userProfile = await createUserProfile(currentUser.uid, currentUser.isAnonymous, {
+                        const newProfile = await createUserProfile(currentUser.uid, false, {
                             email: currentUser.email,
                             role: pendingRole,
-                            username: window.pendingUsername || 'Kid',
-                            disabled: pendingRole === 'Admin' // New Admins are disabled by default
+                            disabled: pendingRole === 'Admin'
                         });
-                        // Clear pending data
                         delete window.pendingRole;
-                        delete window.pendingUsername;
+                        setProfile(newProfile);
                     }
-
-                    setProfile(userProfile);
                 } catch (error) {
                     console.error("Error fetching/creating profile:", error);
                 }
             } else {
                 setUser(null);
                 setProfile(null);
-                // If not logged in, force anonymous login
-                // This ensures a seamless flow for "Anonymous User ID Gen"
                 try {
+                    setLoading(false);
                     await loginAnonymously();
                 } catch (error) {
                     console.error("Auto-anonymous login failed:", error);
+                    setLoading(false);
                 }
             }
-            setLoading(false);
         });
 
-        return () => unsubscribe();
+        const safetyValve = setTimeout(() => {
+            setLoading(current => {
+                if (current) console.warn("Auth Safety Valve triggered: Forcing load completion.");
+                return false;
+            });
+        }, 5000);
+
+        return () => {
+            unsubscribe();
+            clearTimeout(safetyValve);
+        };
     }, []);
 
     const value = {

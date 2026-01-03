@@ -136,7 +136,11 @@ const Home = () => {
                     <div className="p-6 bg-white dark:bg-gray-800/50 grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Dynamic Catpools */}
                         {(freshQuizzes.length > 0 ? freshQuizzes : [1, 2, 3, 4]).map((quiz, i) => (
-                            <div key={quiz.id || i} className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 border-gray-100 dark:border-gray-700 hover:border-purple-300 hover:shadow-lg transition group/item relative top-0 hover:-top-1 duration-300 ${i % 2 === 0 ? 'hover:rotate-1' : 'hover:-rotate-1'}`}>
+                            <div
+                                key={quiz.id || i}
+                                onClick={() => nav(`/battle/${quiz.id || 'mock'}`)}
+                                className={`bg-white dark:bg-gray-800 rounded-2xl p-4 shadow-sm border-2 border-gray-100 dark:border-gray-700 hover:border-purple-300 hover:shadow-lg transition group/item relative top-0 hover:-top-1 duration-300 cursor-pointer ${i % 2 === 0 ? 'hover:rotate-1' : 'hover:-rotate-1'}`}
+                            >
                                 <div className="flex justify-between items-start mb-3">
                                     <span className="bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-300 text-[10px] font-black px-2 py-1 rounded-lg uppercase tracking-wide border border-blue-200">New</span>
                                     <span className="material-symbols-rounded text-yellow-400 drop-shadow-sm group-hover/item:rotate-180 transition-transform duration-500">star</span>

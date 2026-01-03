@@ -8,7 +8,9 @@ import {
     getDocs,
     query,
     where,
-    setDoc
+    setDoc,
+    getDoc,
+    runTransaction
 } from "firebase/firestore";
 import { db } from "../firebase";
 
@@ -17,6 +19,17 @@ const generateBattleCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
+// Centralized player object creator to ensure consistency
+const createPlayerObj = (profile, score = 0) => ({
+    uid: profile.uid,
+    username: profile.username || (profile.isAnonymous ? 'Guest Explorer' : 'Explorer'),
+    level: profile.level || 1,
+    emoji: profile.emojis?.[0] || '🐱',
+    score: score,
+    isGuest: !!profile.isAnonymous,
+    lastActive: Date.now()
+});
+
 export const createBattle = async (hostProfile) => {
     const battleCode = generateBattleCode();
 
@@ -24,12 +37,8 @@ export const createBattle = async (hostProfile) => {
         code: battleCode,
         hostId: hostProfile.uid,
         status: 'lobby', // lobby, active, finished
-        players: [{
-            uid: hostProfile.uid,
-            level: hostProfile.level,
-            emoji: hostProfile.emojis[0],
-            score: 0
-        }],
+        players: [createPlayerObj(hostProfile)],
+        playerLimit: 50, // Default limit
         createdAt: new Date()
     };
 
@@ -37,17 +46,71 @@ export const createBattle = async (hostProfile) => {
     return { id: docRef.id, ...newBattle };
 };
 
+export const updateBattle = async (battleId, updates) => {
+    const battleRef = doc(db, "battles", battleId);
+    await updateDoc(battleRef, updates);
+};
+
 export const joinBattle = async (battleId, userProfile) => {
+    if (!userProfile?.uid) return { success: false, error: 'Invalid profile' };
     const battleRef = doc(db, "battles", battleId);
 
-    await updateDoc(battleRef, {
-        players: arrayUnion({
-            uid: userProfile.uid,
-            level: userProfile.level,
-            emoji: userProfile.emojis[0],
-            score: 0
-        })
-    });
+    try {
+        const result = await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(battleRef);
+            if (!snap.exists()) throw new Error("Battle not found");
+
+            const data = snap.data();
+            const players = data.players || [];
+            const limit = data.playerLimit || 50;
+
+            // Check if already in
+            const alreadyIn = players.some(p => p.uid === userProfile.uid);
+            if (alreadyIn) return { success: true, alreadyIn: true };
+
+            // Check if full
+            if (players.length >= limit) {
+                return { success: false, error: 'Battle is full!' };
+            }
+
+            const newPlayer = createPlayerObj(userProfile);
+            transaction.update(battleRef, {
+                players: arrayUnion(newPlayer)
+            });
+
+            return { success: true };
+        });
+        return result;
+    } catch (e) {
+        console.error("Join transaction failed:", e);
+        return { success: false, error: e.message };
+    }
+};
+
+export const submitAnswer = async (battleId, userId, optionIndex, isCorrect) => {
+    const battleRef = doc(db, "battles", battleId);
+
+    const snap = await getDoc(battleRef);
+    if (snap.exists()) {
+        const data = snap.data();
+        const stats = data.stats || [0, 0, 0, 0];
+        const newStats = [...stats];
+        newStats[optionIndex] = (newStats[optionIndex] || 0) + 1;
+
+        // Update player score in the array
+        const players = data.players || [];
+        const newPlayers = players.map(p => {
+            if (p.uid === userId && isCorrect) {
+                return { ...p, score: (p.score || 0) + 100 };
+            }
+            return p;
+        });
+
+        await updateDoc(battleRef, {
+            stats: newStats,
+            players: newPlayers
+        });
+    }
 };
 
 export const subscribeToBattle = (battleId, callback) => {
@@ -62,39 +125,126 @@ export const subscribeToBattle = (battleId, callback) => {
 
 // Find battle ID by its 6-character Code
 export const findBattleByCode = async (code) => {
-    const q = query(collection(db, "battles"), where("code", "==", code.toUpperCase()));
+    const q = query(collection(db, "battles"), where("code", "==", code.toString()));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-        const doc = snapshot.docs[0];
-        return { id: doc.id, ...doc.data() };
+        const d = snapshot.docs[0];
+        return { id: d.id, ...d.data() };
     }
     return null;
 };
 
+// Forcefully reset a battle to its lobby state with only the host
+export const resetBattle = async (battleId, hostProfile) => {
+    const battleRef = doc(db, "battles", battleId);
+    const resetData = {
+        status: 'lobby',
+        currentQuestionIndex: 0,
+        players: [createPlayerObj(hostProfile)],
+        playerLimit: 50,
+        stats: [0, 0, 0, 0],
+        createdAt: new Date() // Refresh timestamp
+    };
+    await updateDoc(battleRef, resetData);
+    return { id: battleId, ...resetData };
+};
+
 // Ensure a battle exists for a quiz, or create one with the persistent code
 export const ensureBattleForQuiz = async (quiz, hostProfile) => {
-    // Fallback if quiz is missing persistent code (older records), assign a new numeric one
-    const codeToUse = quiz.battleCode || generateBattleCode();
+    // 1. ALWAYS use the persistent code from the quiz
+    const codeToUse = quiz.battleCode || Math.floor(100000 + Math.random() * 900000).toString();
 
-    // Check if battle with this code already exists
-    const existing = await findBattleByCode(codeToUse);
-    if (existing) return existing;
+    // 2. Use a deterministic ID for the active battle of this quiz
+    const battleId = `active_${quiz.id}`;
+    const battleRef = doc(db, "battles", battleId);
+    const snap = await getDoc(battleRef);
 
-    // Create a new one
+    if (snap.exists()) {
+        const data = snap.data();
+
+        // STALE BATTLE CLEANUP: If battle is older than 4 hours, reset it
+        const fourHoursAgo = new Date(Date.now() - 4 * 60 * 60 * 1000);
+        const createdAt = data.createdAt?.toDate() || new Date(0);
+
+        if (data.status !== 'finished' && createdAt > fourHoursAgo) {
+            return { id: snap.id, ...data };
+        }
+
+        // If finished OR stale, reset for a new session
+        return await resetBattle(battleId, hostProfile);
+    }
+
+    // Create or Reset active battle doc
     const newBattle = {
         code: codeToUse,
         quizId: quiz.id || 'none',
         hostId: hostProfile.uid,
         status: 'lobby',
-        players: [{
-            uid: hostProfile.uid,
-            level: hostProfile.level || 1,
-            emoji: hostProfile.emojis?.[0] || '🐱',
-            score: 0
-        }],
+        currentQuestionIndex: 0,
+        players: [createPlayerObj(hostProfile)],
+        playerLimit: 50, // Default limit
+        stats: [0, 0, 0, 0],
         createdAt: new Date()
     };
 
-    const docRef = await addDoc(collection(db, "battles"), newBattle);
-    return { id: docRef.id, ...newBattle };
+    await setDoc(battleRef, newBattle);
+    return { id: battleId, ...newBattle };
+};
+
+// Finalize rewards at the end of a battle
+// Marks the boundary between temporary session play and permanent account growth
+export const finalizeBattleRewards = async (battleId) => {
+    const battleRef = doc(db, "battles", battleId);
+    const snap = await getDoc(battleRef);
+
+    if (snap.exists()) {
+        const data = snap.data();
+        const players = data.players || [];
+
+        // Distribute rewards using an optimistic parallel approach
+        const rewardPromises = players.map(async (player) => {
+            if (player.isGuest === false && (player.score || 0) > 0) {
+                const userRef = doc(db, "users", player.uid);
+                try {
+                    await updateDoc(userRef, {
+                        coins: increment(Math.floor(player.score / 10)), // 10% of score reward
+                        xp: increment(player.score) // 1:1 XP reward
+                    });
+                } catch (err) {
+                    console.error(`Failed to reward user ${player.uid}:`, err);
+                }
+            }
+        });
+
+        await Promise.all(rewardPromises);
+    }
+};
+
+// Refresh a player's lastActive timestamp to avoid being flagged as a "Ghost"
+export const updatePlayerHeartbeat = async (battleId, uid) => {
+    const battleRef = doc(db, "battles", battleId);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const snap = await transaction.get(battleRef);
+            if (!snap.exists()) return;
+
+            const data = snap.data();
+            const players = data.players || [];
+            let changed = false;
+
+            const newPlayers = players.map(p => {
+                if (p.uid === uid) {
+                    changed = true;
+                    return { ...p, lastActive: Date.now() };
+                }
+                return p;
+            });
+
+            if (changed) {
+                transaction.update(battleRef, { players: newPlayers });
+            }
+        });
+    } catch (e) {
+        console.error("Heartbeat update failed:", e);
+    }
 };
