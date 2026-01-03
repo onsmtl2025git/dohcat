@@ -5,6 +5,9 @@ import { findQuizByBattleCode, findQuizById } from '../services/quizService';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 import GuestJoinModal from '../components/GuestJoinModal';
+import { rtdb } from '../firebase';
+import { ref, onValue } from 'firebase/database';
+import { setPlayerOnline, removePlayerOnline } from '../services/presenceService';
 
 const BattleRoom = () => {
     const { battleId } = useParams();
@@ -29,15 +32,13 @@ const BattleRoom = () => {
     const [customEmoji, setCustomEmoji] = useState('🐱');
     const [hasJoinedLocally, setHasJoinedLocally] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
+    const [activePlayers, setActivePlayers] = useState([]);
 
     // Derived State
     const isHost = authUser?.uid === battle?.hostId;
 
-    // THE FILTER: Remove "Ghost Players" who haven't sent a heartbeat in 2 minutes
-    const activeThreshold = Date.now() - 120000;
-    const sortedPlayers = [...(battle?.players || [])]
-        .filter(p => !p.lastActive || p.lastActive > activeThreshold)
-        .sort((a, b) => b.score - a.score);
+    // THE LEADERBOARD: Driven by the RTDB Presence Sidecar
+    const sortedPlayers = [...activePlayers].sort((a, b) => b.score - a.score);
 
     useEffect(() => {
         if (!battleId) return;
@@ -126,17 +127,22 @@ const BattleRoom = () => {
         };
     }, [battleId, nav, authUser?.uid, authLoading]);
 
-    // HEARTBEAT LOOP: Keeps the "Ghost Filter" from hiding active players
+    // RTDB PRESENCE LISTENER: Handles the live leaderboard and native disconnections
     useEffect(() => {
-        if (!battleId || !authUser?.uid || !battle?.players?.some(p => p.uid === authUser.uid)) return;
+        if (!battleId) return;
+        const onlineRef = ref(rtdb, `battles/${battleId}/online`);
 
-        // Pulse every 45 seconds
-        const heartbeat = setInterval(() => {
-            updatePlayerHeartbeat(battleId, authUser.uid);
-        }, 45000);
+        const unsubRTDB = onValue(onlineRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                setActivePlayers(Object.values(data));
+            } else {
+                setActivePlayers([]);
+            }
+        });
 
-        return () => clearInterval(heartbeat);
-    }, [battleId, authUser?.uid, !!battle]);
+        return () => unsubRTDB();
+    }, [battleId]);
 
     // GUEST PERSISTENCE: Restore session if refreshed
     useEffect(() => {
@@ -145,14 +151,23 @@ const BattleRoom = () => {
             if (savedGuest) {
                 try {
                     const { name, emoji, uid } = JSON.parse(savedGuest);
-                    // If UIDs match, we can auto-rejoin or pre-fill
                     if (uid === authUser?.uid) {
                         setCustomName(name);
                         setCustomEmoji(emoji);
 
-                        // If they were already in the players list, mark as joined
-                        if (battle.players?.some(p => p.uid === uid)) {
+                        // If they were already in the active list, mark as joined and re-set presence
+                        const isAlreadyActive = activePlayers.some(p => p.uid === uid);
+                        if (isAlreadyActive || battle.players?.some(p => p.uid === uid)) {
                             setHasJoinedLocally(true);
+                            if (!isAlreadyActive) {
+                                setPlayerOnline(battleId, {
+                                    uid,
+                                    username: name,
+                                    emoji: emoji,
+                                    isGuest: true,
+                                    score: battle.players?.find(p => p.uid === uid)?.score || 0
+                                });
+                            }
                         }
                     }
                 } catch (e) {
@@ -160,7 +175,7 @@ const BattleRoom = () => {
                 }
             }
         }
-    }, [userProfile?.isAnonymous, battleId, !!battle, authUser?.uid]);
+    }, [userProfile?.isAnonymous, battleId, !!battle, authUser?.uid, activePlayers.length === 0]);
 
     // Main Game Timer - Ticks only when no countdown is active
     useEffect(() => {
@@ -263,7 +278,17 @@ const BattleRoom = () => {
             setHasJoinedLocally(false);
         } else {
             setShowGuestModal(false);
-            // PERSIST GUEST: Store identity locally to survive refreshes
+
+            // JOIN PRESENCE: Add to RTDB sidecar
+            setPlayerOnline(battle.id || battleId, {
+                uid: authUser.uid,
+                username: playerPayload.username,
+                emoji: playerPayload.emojis?.[0] || '🐱',
+                isGuest: !!userProfile?.isAnonymous,
+                score: 0
+            });
+
+            // PERSIST GUEST: Store identity locally
             if (userProfile?.isAnonymous) {
                 localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
                     name: nameOverride || customName,

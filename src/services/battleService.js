@@ -12,7 +12,9 @@ import {
     getDoc,
     runTransaction
 } from "firebase/firestore";
-import { db } from "../firebase";
+import { db, rtdb } from "../firebase";
+import { updatePlayerScoreRTDB } from "./presenceService";
+import { ref, remove } from "firebase/database";
 
 // Generate a random 6-digit numeric code
 const generateBattleCode = () => {
@@ -110,6 +112,12 @@ export const submitAnswer = async (battleId, userId, optionIndex, isCorrect) => 
             stats: newStats,
             players: newPlayers
         });
+
+        // MIRROR TO RTDB PRESENCE SIDE CAR
+        const p = newPlayers.find(p => p.uid === userId);
+        if (p) {
+            updatePlayerScoreRTDB(battleId, userId, p.score);
+        }
     }
 };
 
@@ -146,6 +154,11 @@ export const resetBattle = async (battleId, hostProfile) => {
         createdAt: new Date() // Refresh timestamp
     };
     await updateDoc(battleRef, resetData);
+
+    // Reset RTDB Sidecar
+    const onlineRef = ref(rtdb, `battles/${battleId}/online`);
+    await remove(onlineRef);
+
     return { id: battleId, ...resetData };
 };
 
