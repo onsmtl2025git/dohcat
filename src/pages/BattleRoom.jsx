@@ -450,13 +450,13 @@ const BattleRoom = () => {
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => activeUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
+                                        onClick={() => authUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
                                         disabled={!authUser}
                                         className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${!authUser ? 'opacity-50 cursor-wait' : ''}`}
                                     >
                                         {(activeUser?.isSyncing || !activeUser) && <span className="material-symbols-rounded animate-spin">sync</span>}
                                         {authUser ? (
-                                            activeUser?.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
+                                            authUser.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
                                         ) : 'Syncing Profile...'}
                                     </button>
                                 )}
