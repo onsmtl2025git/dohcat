@@ -627,20 +627,11 @@ const BattleRoom = () => {
                     )}
                 </div>
             )}
-
-            {battle.status === 'finished' && (
-                <div className="mt-auto w-full">
-                    <button onClick={() => nav('/')} className="floating-card hover:-translate-y-1 w-full py-5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black rounded-3xl shadow-3d-cyan border-2 border-white/20 flex items-center justify-center gap-3 group">
-                        <span className="material-symbols-rounded">rocket_launch</span>
-                        RETURN TO PLAY GROUND
-                    </button>
-                </div>
-            )}
         </div>
     );
 
     const RenderCeremony = () => (
-        <div className="lg:col-span-6 h-full floating-card bg-white dark:bg-gray-800 rounded-[3rem] flex flex-col items-center justify-center p-8 relative overflow-hidden shadow-3d-orange border-4 border-yellow-200">
+        <div className="w-full h-full min-h-[60vh] floating-card bg-white dark:bg-gray-800 rounded-[3rem] flex flex-col items-center justify-center p-8 relative overflow-hidden shadow-3d-orange border-4 border-yellow-200">
             <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/confetti.png')] opacity-10"></div>
             <div className="text-center z-10 w-full max-w-4xl">
                 <h1 className="text-7xl md:text-9xl font-black text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 mb-12 drop-shadow-sm tracking-tighter filter hover:brightness-110 transition-all cursor-default animate-bounce">VICTORY!</h1>
@@ -664,10 +655,6 @@ const BattleRoom = () => {
                         </div>
                     </div>
                 </div>
-                <button onClick={() => nav('/')} className="px-12 py-5 bg-gray-900 text-white font-black rounded-[2rem] hover:scale-105 transition shadow-3d-white hover:translate-y-[-4px] md:text-xl flex items-center justify-center gap-3 mx-auto">
-                    <span className="material-symbols-rounded">sports_esports</span>
-                    Return to Play Ground
-                </button>
             </div>
         </div>
     );
@@ -724,10 +711,29 @@ const BattleRoom = () => {
             <h1 className="text-xl font-bold text-gray-500/50 mb-6 font-display uppercase tracking-[0.2em] text-center">
                 Battle Arena <span className="text-gray-400">#{battle.code}</span>
             </h1>
-            <div className="max-w-[1400px] mx-auto w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-                {RenderRankings()}
-                {showCeremony ? RenderCeremony() : RenderGameBoard()}
-                {RenderStatus()}
+            <div className="max-w-[1400px] mx-auto w-full flex-1 flex flex-col">
+                <div className="flex-1">
+                    {showCeremony ? (
+                        RenderCeremony()
+                    ) : (
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 h-full">
+                            {RenderRankings()}
+                            {RenderGameBoard()}
+                            {RenderStatus()}
+                        </div>
+                    )}
+                </div>
+
+                {/* Persistent Escape Hatch */}
+                <div className="mt-12 flex justify-center animate-in slide-in-from-bottom duration-700 delay-500">
+                    <button
+                        onClick={() => nav('/')}
+                        className="px-12 py-5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-black rounded-[2rem] shadow-3d-cyan hover:scale-105 transition-all flex items-center justify-center gap-3 group max-w-md w-full border-2 border-white/20"
+                    >
+                        <span className="material-symbols-rounded group-hover:rotate-12 transition-transform text-2xl">rocket_launch</span>
+                        <span className="tracking-tight uppercase">Return to Play Ground</span>
+                    </button>
+                </div>
             </div>
 
             {showGuestModal && (
