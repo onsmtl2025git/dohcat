@@ -44,7 +44,7 @@ export const subscribeToQuizzes = (callback) => {
     });
 };
 
-export const createQuiz = async (quizData, userId) => {
+export const createQuiz = async (quizData, userId, creatorName = 'Anonymous') => {
     // 1. Generate a UNIQUE persistent 6-digit numeric code 
     let battleCode = '';
     let isUnique = false;
@@ -56,7 +56,8 @@ export const createQuiz = async (quizData, userId) => {
 
     const newQuiz = {
         ...quizData,
-        creatorId: userId,
+        authorId: userId, // Using authorId for consistency
+        creatorName: creatorName, // Add creator name for attribution
         battleCode,
         createdAt: new Date(),
         plays: 0,

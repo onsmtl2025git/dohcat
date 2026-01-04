@@ -22,13 +22,14 @@ const generateBattleCode = () => {
 };
 
 // Centralized player object creator to ensure consistency
-const createPlayerObj = (profile, score = 0) => ({
+const createPlayerObj = (profile, score = 0, isSpectator = false) => ({
     uid: profile.uid,
     username: profile.username || (profile.isAnonymous ? 'Guest Explorer' : 'Explorer'),
     level: profile.level || 1,
     emoji: profile.emojis?.[0] || '🐱',
     score: score,
     isGuest: !!profile.isAnonymous,
+    isSpectator: isSpectator,
     lastActive: Date.now()
 });
 
@@ -53,7 +54,7 @@ export const updateBattle = async (battleId, updates) => {
     await updateDoc(battleRef, updates);
 };
 
-export const joinBattle = async (battleId, userProfile) => {
+export const joinBattle = async (battleId, userProfile, isSpectator = false) => {
     if (!userProfile?.uid) return { success: false, error: 'Invalid profile' };
     const battleRef = doc(db, "battles", battleId);
 
@@ -70,12 +71,13 @@ export const joinBattle = async (battleId, userProfile) => {
             const alreadyIn = players.some(p => p.uid === userProfile.uid);
             if (alreadyIn) return { success: true, alreadyIn: true };
 
-            // Check if full
-            if (players.length >= limit) {
+            // Check if full (spectators don't count toward limit)
+            const nonSpectatorCount = players.filter(p => !p.isSpectator).length;
+            if (!isSpectator && nonSpectatorCount >= limit) {
                 return { success: false, error: 'Battle is full!' };
             }
 
-            const newPlayer = createPlayerObj(userProfile);
+            const newPlayer = createPlayerObj(userProfile, 0, isSpectator);
             transaction.update(battleRef, {
                 players: arrayUnion(newPlayer)
             });
@@ -95,26 +97,36 @@ export const submitAnswer = async (battleId, userId, optionIndex, isCorrect) => 
     const snap = await getDoc(battleRef);
     if (snap.exists()) {
         const data = snap.data();
-        const stats = data.stats || [0, 0, 0, 0];
-        const newStats = [...stats];
-        newStats[optionIndex] = (newStats[optionIndex] || 0) + 1;
+        const players = data.players || [];
+
+        // Check if user is a spectator
+        const player = players.find(p => p.uid === userId);
+        const isSpectator = player?.isSpectator || false;
+
+        // Skip stat updates for spectators
+        let statsUpdate = {};
+        if (!isSpectator) {
+            const stats = data.stats || [0, 0, 0, 0];
+            const newStats = [...stats];
+            newStats[optionIndex] = (newStats[optionIndex] || 0) + 1;
+            statsUpdate = { stats: newStats };
+        }
 
         // Update player score in the array
-        const players = data.players || [];
         const newPlayers = players.map(p => {
-            if (p.uid === userId && isCorrect) {
+            if (p.uid === userId && isCorrect && !p.isSpectator) {
                 return { ...p, score: (p.score || 0) + 100 };
             }
             return p;
         });
 
         await updateDoc(battleRef, {
-            stats: newStats,
+            ...statsUpdate,
             players: newPlayers
         });
 
-        // MIRROR TO RTDB PRESENCE SIDE CAR
-        if (isCorrect) {
+        // MIRROR TO RTDB PRESENCE SIDE CAR (skip spectators)
+        if (isCorrect && !isSpectator) {
             updatePlayerScoreRTDB(battleId, userId, 100);
         }
     }
@@ -163,6 +175,14 @@ export const resetBattle = async (battleId, hostProfile) => {
 
 // Ensure a battle exists for a quiz, or create one with the persistent code
 export const ensureBattleForQuiz = async (quiz, hostProfile) => {
+    // PRIVACY-BASED HOSTING: Check if user is authorized to host
+    const isPrivate = quiz.isPublic === false;
+    const isCreator = quiz.authorId === hostProfile.uid;
+
+    if (isPrivate && !isCreator) {
+        throw new Error('Only the creator can host private quizzes');
+    }
+
     // 1. ALWAYS use the persistent code from the quiz
     const codeToUse = quiz.battleCode || Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -179,6 +199,11 @@ export const ensureBattleForQuiz = async (quiz, hostProfile) => {
         const createdAt = data.createdAt?.toDate() || new Date(0);
 
         if (data.status !== 'finished' && createdAt > fourHoursAgo) {
+            // For public quizzes: allow dynamic host takeover if current host left
+            if (!isPrivate && !data.players?.some(p => p.uid === data.hostId)) {
+                await updateDoc(battleRef, { hostId: hostProfile.uid });
+                return { id: snap.id, ...data, hostId: hostProfile.uid };
+            }
             return { id: snap.id, ...data };
         }
 

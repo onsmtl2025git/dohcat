@@ -28,12 +28,12 @@ const BattleRoom = () => {
     const [selectedOption, setSelectedOption] = useState(null);
     const [showCeremony, setShowCeremony] = useState(false);
 
-    // Profile Customization State (Lobby Only)
     const [customName, setCustomName] = useState('');
     const [customEmoji, setCustomEmoji] = useState('🐱');
     const [hasJoinedLocally, setHasJoinedLocally] = useState(false);
     const [showGuestModal, setShowGuestModal] = useState(false);
     const [activePlayers, setActivePlayers] = useState([]);
+    const [isSpectatorMode, setIsSpectatorMode] = useState(false);
 
     // Derived State
     const isHost = authUser?.uid === battle?.hostId;
@@ -47,8 +47,8 @@ const BattleRoom = () => {
         level: 1
     } : null);
 
-    // THE LEADERBOARD: Driven by the RTDB Presence Sidecar
-    const sortedPlayers = [...activePlayers].sort((a, b) => b.score - a.score);
+    // THE LEADERBOARD: Driven by the RTDB Presence Sidecar (Filter spectators)
+    const sortedPlayers = [...activePlayers].filter(p => !p.isSpectator).sort((a, b) => b.score - a.score);
 
     useEffect(() => {
         if (!battleId) return;
@@ -305,7 +305,7 @@ const BattleRoom = () => {
         });
     };
 
-    const handleJoin = async (nameOverride = null, emojiOverride = null) => {
+    const handleJoin = async (nameOverride = null, emojiOverride = null, asSpectator = false) => {
         if (!authUser) return;
         setHasJoinedLocally(true);
 
@@ -327,21 +327,23 @@ const BattleRoom = () => {
             uid: authUser.uid // Ensure UID is attached
         };
 
-        const result = await joinBattle(battle.id || battleId, playerPayload);
+        const result = await joinBattle(battle.id || battleId, playerPayload, asSpectator);
         if (result && !result.success) {
             alert(result.error || "Could not join battle. 🛑");
             setHasJoinedLocally(false);
         } else {
             setShowGuestModal(false);
 
-            // JOIN PRESENCE: Add to RTDB sidecar
-            setPlayerOnline(battle.id || battleId, {
-                uid: authUser.uid,
-                username: playerPayload.username || 'Explorer',
-                emoji: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
-                isGuest: !!activeUser?.isAnonymous,
-                score: 0
-            });
+            // JOIN PRESENCE: Add to RTDB sidecar (only if not spectator)
+            if (!asSpectator) {
+                setPlayerOnline(battle.id || battleId, {
+                    uid: authUser.uid,
+                    username: playerPayload.username || 'Explorer',
+                    emoji: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
+                    isGuest: !!activeUser?.isAnonymous,
+                    score: 0
+                });
+            }
 
             // PERSIST GUEST: Store identity locally
             if (activeUser?.isAnonymous) {
@@ -426,16 +428,38 @@ const BattleRoom = () => {
                                     </p>
                                 </div>
 
-                                <button
-                                    onClick={() => activeUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
-                                    disabled={!authUser}
-                                    className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${!authUser ? 'opacity-50 cursor-wait' : ''}`}
-                                >
-                                    {(activeUser?.isSyncing || !activeUser) && <span className="material-symbols-rounded animate-spin">sync</span>}
-                                    {authUser ? (
-                                        activeUser?.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
-                                    ) : 'Syncing Profile...'}
-                                </button>
+                                {/* Host Spectator Mode Toggle */}
+                                {isHost ? (
+                                    <div className="flex gap-3 w-full">
+                                        <button
+                                            onClick={() => handleJoin(null, null, false)}
+                                            disabled={!authUser}
+                                            className="flex-1 py-5 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black rounded-2xl shadow-xl hover:scale-[1.02] transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                                        >
+                                            <span className="material-symbols-rounded">sports_esports</span>
+                                            Join Battle
+                                        </button>
+                                        <button
+                                            onClick={() => { handleJoin(null, null, true); setIsSpectatorMode(true); }}
+                                            disabled={!authUser}
+                                            className="flex-1 py-5 bg-gray-600 text-white font-black rounded-2xl shadow-xl hover:bg-gray-700 hover:scale-[1.02] transition-all uppercase tracking-widest flex items-center justify-center gap-2"
+                                        >
+                                            <span className="material-symbols-rounded">visibility</span>
+                                            Watch
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={() => activeUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
+                                        disabled={!authUser}
+                                        className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${!authUser ? 'opacity-50 cursor-wait' : ''}`}
+                                    >
+                                        {(activeUser?.isSyncing || !activeUser) && <span className="material-symbols-rounded animate-spin">sync</span>}
+                                        {authUser ? (
+                                            activeUser?.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
+                                        ) : 'Syncing Profile...'}
+                                    </button>
+                                )}
                             </div>
                         ) : (
                             <>
