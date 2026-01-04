@@ -37,7 +37,7 @@ export const UserProvider = ({ children }) => {
                         const stubProfile = {
                             uid: currentUser.uid,
                             isAnonymous: true,
-                            username: `Explorer #${currentUser.uid.slice(-4).toUpperCase()}`,
+                            username: `Explorer #${currentUser.uid?.slice(-4).toUpperCase() || '????'}`,
                             role: 'Kid',
                             level: 1,
                             emojis: ['🐱'],

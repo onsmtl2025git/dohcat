@@ -269,7 +269,7 @@ const BattleRoom = () => {
         // If anonymous, use custom name/emoji from overrides or state.
         const playerPayload = userProfile?.isAnonymous ? {
             ...userProfile,
-            username: nameOverride || customName || `Explorer #${authUser.uid.slice(-4).toUpperCase()}`,
+            username: nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase() || '????'}`,
             emojis: [emojiOverride || customEmoji, ...(userProfile.emojis || [])]
         } : {
             ...userProfile,
@@ -596,19 +596,19 @@ const BattleRoom = () => {
                     <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-1000 delay-200 group">
                         <div className="text-5xl md:text-6xl mb-4 group-hover:-translate-y-2 transition-transform">🥈</div>
                         <div className="w-24 md:w-32 h-40 bg-gray-100 dark:bg-gray-700 rounded-t-3xl flex items-end justify-center pb-6 shadow-inner border-t-8 border-gray-300 relative">
-                            <div className="font-black text-gray-500 dark:text-white text-sm md:text-lg absolute bottom-4 capitalize truncate px-2 w-full text-center">{sortedPlayers[1]?.username || sortedPlayers[1]?.uid.slice(0, 6) || 'N/A'}</div>
+                            <div className="font-black text-gray-500 dark:text-white text-sm md:text-lg absolute bottom-4 capitalize truncate px-2 w-full text-center">{sortedPlayers[1]?.username || sortedPlayers[1]?.uid?.slice(0, 6) || 'N/A'}</div>
                         </div>
                     </div>
                     <div className="flex flex-col items-center z-10 animate-in slide-in-from-bottom duration-1000 group">
                         <div className="text-7xl md:text-8xl mb-4 animate-bounce group-hover:scale-110 transition-transform">👑</div>
                         <div className="w-32 md:w-40 h-64 bg-gradient-to-b from-yellow-300 to-yellow-400 rounded-t-3xl flex items-end justify-center pb-8 shadow-2xl border-t-8 border-yellow-200 relative overflow-hidden">
-                            <div className="font-black text-yellow-900 text-lg md:text-2xl absolute bottom-6 capitalize truncate px-2 w-full text-center">{sortedPlayers[0]?.username || sortedPlayers[0]?.uid.slice(0, 6) || 'Champion'}</div>
+                            <div className="font-black text-yellow-900 text-lg md:text-2xl absolute bottom-6 capitalize truncate px-2 w-full text-center">{sortedPlayers[0]?.username || sortedPlayers[0]?.uid?.slice(0, 6) || 'Champion'}</div>
                         </div>
                     </div>
                     <div className="flex flex-col items-center animate-in slide-in-from-bottom duration-1000 delay-500 group">
                         <div className="text-5xl md:text-6xl mb-4 group-hover:-translate-y-2 transition-transform">🥉</div>
                         <div className="w-24 md:w-32 h-32 bg-orange-100 dark:bg-orange-900 rounded-t-3xl flex items-end justify-center pb-5 shadow-inner border-t-8 border-orange-300 relative">
-                            <div className="font-black text-orange-700 dark:text-white text-sm md:text-lg absolute bottom-4 capitalize truncate px-2 w-full text-center">{sortedPlayers[2]?.username || sortedPlayers[2]?.uid.slice(0, 6) || 'N/A'}</div>
+                            <div className="font-black text-orange-700 dark:text-white text-sm md:text-lg absolute bottom-4 capitalize truncate px-2 w-full text-center">{sortedPlayers[2]?.username || sortedPlayers[2]?.uid?.slice(0, 6) || 'N/A'}</div>
                         </div>
                     </div>
                 </div>
