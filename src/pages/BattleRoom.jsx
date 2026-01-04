@@ -5,9 +5,10 @@ import { findQuizByBattleCode, findQuizById } from '../services/quizService';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 import GuestJoinModal from '../components/GuestJoinModal';
-import { rtdb } from '../firebase';
+import { db, rtdb } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 import { setPlayerOnline, removePlayerOnline } from '../services/presenceService';
+import { doc, getDoc } from 'firebase/firestore';
 
 const BattleRoom = () => {
     const { battleId } = useParams();
@@ -190,23 +191,38 @@ const BattleRoom = () => {
 
     // MEMBER PERSISTENCE: Restore session if refreshed (Registered Users)
     useEffect(() => {
-        if (activeUser && !activeUser.isAnonymous && !hasJoinedLocally && battle) {
-            const existingPlayer = battle.players?.find(p => p.uid === activeUser.uid);
-            if (existingPlayer) {
-                setHasJoinedLocally(true);
-                const isAlreadyOnline = activePlayers.some(p => p.uid === activeUser.uid);
-                if (!isAlreadyOnline) {
-                    setPlayerOnline(battleId, {
-                        uid: activeUser.uid,
-                        username: activeUser.username,
-                        emoji: activeUser.emoji || activeUser.emojis?.[0] || '🐱',
-                        isGuest: false,
-                        score: existingPlayer.score || 0
-                    });
+        const recoverRegisteredMember = async () => {
+            if (activeUser && !activeUser.isAnonymous && !hasJoinedLocally && battle) {
+                // LOCK: Wait for profile to be truly ready (has username) 
+                // If context is slow, we can do a tactical fetch here
+                let finalProfile = userProfile;
+                if (!finalProfile?.username) {
+                    try {
+                        const snap = await getDoc(doc(db, "users", authUser.uid));
+                        if (snap.exists()) finalProfile = snap.data();
+                    } catch (e) {
+                        console.error("Tactical profile fetch failed:", e);
+                    }
+                }
+
+                const existingPlayer = battle.players?.find(p => p.uid === activeUser.uid);
+                if (existingPlayer && finalProfile?.username) {
+                    setHasJoinedLocally(true);
+                    const isAlreadyOnline = activePlayers.some(p => p.uid === activeUser.uid);
+                    if (!isAlreadyOnline) {
+                        setPlayerOnline(battleId, {
+                            uid: activeUser.uid,
+                            username: finalProfile.username,
+                            emoji: finalProfile.emoji || finalProfile.emojis?.[0] || '🐱',
+                            isGuest: false,
+                            score: existingPlayer.score || 0
+                        });
+                    }
                 }
             }
-        }
-    }, [activeUser?.isAnonymous, !!battle, activePlayers.length === 0]);
+        };
+        recoverRegisteredMember();
+    }, [activeUser?.isAnonymous, !!battle, activePlayers.length === 0, userProfile?.username, authUser?.uid]);
 
     // Main Game Timer - Ticks only when no countdown is active
     useEffect(() => {
@@ -293,14 +309,22 @@ const BattleRoom = () => {
         if (!authUser) return;
         setHasJoinedLocally(true);
 
+        let finalProfile = userProfile;
+        // TACTICAL FETCH: If registered and name is missing, force a fetch to avoid 'Guest' label
+        if (!authUser.isAnonymous && !finalProfile?.username) {
+            const snap = await getDoc(doc(db, "users", authUser.uid));
+            if (snap.exists()) finalProfile = snap.data();
+        }
+
         // If anonymous, use custom name/emoji from overrides or state.
-        const playerPayload = activeUser?.isAnonymous ? {
+        const playerPayload = authUser.isAnonymous ? {
             ...activeUser,
             username: nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase() || '????'}`,
             emoji: emojiOverride || customEmoji,
-            emojis: [emojiOverride || customEmoji, ...(activeUser.emojis || [])]
+            emojis: [emojiOverride || customEmoji, ...(activeUser?.emojis || [])]
         } : {
-            ...activeUser,
+            ...finalProfile,
+            uid: authUser.uid // Ensure UID is attached
         };
 
         const result = await joinBattle(battle.id || battleId, playerPayload);
