@@ -1,4 +1,4 @@
-import { ref, set, onDisconnect, remove, update } from "firebase/database";
+import { ref, set, onDisconnect, remove, update, runTransaction } from "firebase/database";
 import { rtdb } from "../firebase";
 
 /**
@@ -29,15 +29,21 @@ export const setPlayerOnline = async (battleId, player) => {
 };
 
 /**
- * Updates a player's score in the RTDB sidecar for real-time leaderboard reactivity.
+ * Updates a player's score in the RTDB sidecar using runTransaction to prevent overwrites.
+ * Accepts pointsToAdd (delta) for atomic increments.
  */
-export const updatePlayerScoreRTDB = async (battleId, uid, newScore) => {
+export const updatePlayerScoreRTDB = async (battleId, uid, pointsToAdd) => {
     if (!battleId || !uid) return;
-    const userStatusRef = ref(rtdb, `battles/${battleId}/online/${uid}`);
-    await update(userStatusRef, {
-        score: newScore,
-        lastActive: Date.now()
+    const scoreRef = ref(rtdb, `battles/${battleId}/online/${uid}/score`);
+    const lastActiveRef = ref(rtdb, `battles/${battleId}/online/${uid}/lastActive`);
+
+    // 1. Update Score Atomically
+    await runTransaction(scoreRef, (currentScore) => {
+        return (currentScore || 0) + pointsToAdd;
     });
+
+    // 2. Update Timestamp
+    await set(lastActiveRef, Date.now());
 };
 
 /**

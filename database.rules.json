@@ -1,0 +1,12 @@
+{
+    "rules": {
+        "battles": {
+            "$battleId": {
+                "online": {
+                    ".read": true,
+                    ".write": true
+                }
+            }
+        }
+    }
+}

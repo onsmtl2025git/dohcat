@@ -114,9 +114,8 @@ export const submitAnswer = async (battleId, userId, optionIndex, isCorrect) => 
         });
 
         // MIRROR TO RTDB PRESENCE SIDE CAR
-        const p = newPlayers.find(p => p.uid === userId);
-        if (p) {
-            updatePlayerScoreRTDB(battleId, userId, p.score);
+        if (isCorrect) {
+            updatePlayerScoreRTDB(battleId, userId, 100);
         }
     }
 };

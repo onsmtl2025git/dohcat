@@ -156,16 +156,19 @@ const BattleRoom = () => {
                         setCustomEmoji(emoji);
 
                         // If they were already in the active list, mark as joined and re-set presence
-                        const isAlreadyActive = activePlayers.some(p => p.uid === uid);
-                        if (isAlreadyActive || battle.players?.some(p => p.uid === uid)) {
+                        const existingPlayerInFirestore = battle.players?.find(p => p.uid === uid);
+                        const isAlreadyOnlineInRTDB = activePlayers.some(p => p.uid === uid);
+
+                        if (existingPlayerInFirestore) {
                             setHasJoinedLocally(true);
-                            if (!isAlreadyActive) {
+                            if (!isAlreadyOnlineInRTDB) {
+                                // Restore Presence Sidecar Node
                                 setPlayerOnline(battleId, {
                                     uid,
                                     username: name,
                                     emoji: emoji,
                                     isGuest: true,
-                                    score: battle.players?.find(p => p.uid === uid)?.score || 0
+                                    score: existingPlayerInFirestore.score || 0
                                 });
                             }
                         }
