@@ -37,6 +37,15 @@ const BattleRoom = () => {
     // Derived State
     const isHost = authUser?.uid === battle?.hostId;
 
+    // THE ACTIVE IDENTITY: Flattened for consistent UI behavior
+    const activeUser = userProfile ? { ...userProfile } : (authUser ? {
+        uid: authUser.uid,
+        username: authUser.displayName || (authUser.isAnonymous ? 'Guest Explorer' : (authUser.email?.split('@')[0] || 'Member')),
+        emoji: authUser.photoURL || '👤',
+        isAnonymous: authUser.isAnonymous,
+        level: 1
+    } : null);
+
     // THE LEADERBOARD: Driven by the RTDB Presence Sidecar
     const sortedPlayers = [...activePlayers].sort((a, b) => b.score - a.score);
 
@@ -144,9 +153,9 @@ const BattleRoom = () => {
         return () => unsubRTDB();
     }, [battleId]);
 
-    // GUEST PERSISTENCE: Restore session if refreshed
+    // GUEST PERSISTENCE: Restore session if refreshed (Guests)
     useEffect(() => {
-        if (userProfile?.isAnonymous && !hasJoinedLocally && battle) {
+        if (activeUser?.isAnonymous && !hasJoinedLocally && battle) {
             const savedGuest = localStorage.getItem(`guest_auth_${battleId}`);
             if (savedGuest) {
                 try {
@@ -155,7 +164,6 @@ const BattleRoom = () => {
                         setCustomName(name);
                         setCustomEmoji(emoji);
 
-                        // If they were already in the active list, mark as joined and re-set presence
                         const existingPlayerInFirestore = battle.players?.find(p => p.uid === uid);
                         const isAlreadyOnlineInRTDB = activePlayers.some(p => p.uid === uid);
 
@@ -178,7 +186,27 @@ const BattleRoom = () => {
                 }
             }
         }
-    }, [userProfile?.isAnonymous, battleId, !!battle, authUser?.uid, activePlayers.length === 0]);
+    }, [activeUser?.isAnonymous, battleId, !!battle, authUser?.uid, activePlayers.length === 0]);
+
+    // MEMBER PERSISTENCE: Restore session if refreshed (Registered Users)
+    useEffect(() => {
+        if (activeUser && !activeUser.isAnonymous && !hasJoinedLocally && battle) {
+            const existingPlayer = battle.players?.find(p => p.uid === activeUser.uid);
+            if (existingPlayer) {
+                setHasJoinedLocally(true);
+                const isAlreadyOnline = activePlayers.some(p => p.uid === activeUser.uid);
+                if (!isAlreadyOnline) {
+                    setPlayerOnline(battleId, {
+                        uid: activeUser.uid,
+                        username: activeUser.username,
+                        emoji: activeUser.emoji || activeUser.emojis?.[0] || '🐱',
+                        isGuest: false,
+                        score: existingPlayer.score || 0
+                    });
+                }
+            }
+        }
+    }, [activeUser?.isAnonymous, !!battle, activePlayers.length === 0]);
 
     // Main Game Timer - Ticks only when no countdown is active
     useEffect(() => {
@@ -265,14 +293,14 @@ const BattleRoom = () => {
         if (!authUser) return;
         setHasJoinedLocally(true);
 
-        // Construct the player object. If registered, use profile exactly. 
         // If anonymous, use custom name/emoji from overrides or state.
-        const playerPayload = userProfile?.isAnonymous ? {
-            ...userProfile,
+        const playerPayload = activeUser?.isAnonymous ? {
+            ...activeUser,
             username: nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase() || '????'}`,
-            emojis: [emojiOverride || customEmoji, ...(userProfile.emojis || [])]
+            emoji: emojiOverride || customEmoji,
+            emojis: [emojiOverride || customEmoji, ...(activeUser.emojis || [])]
         } : {
-            ...userProfile,
+            ...activeUser,
         };
 
         const result = await joinBattle(battle.id || battleId, playerPayload);
@@ -285,14 +313,14 @@ const BattleRoom = () => {
             // JOIN PRESENCE: Add to RTDB sidecar
             setPlayerOnline(battle.id || battleId, {
                 uid: authUser.uid,
-                username: playerPayload.username,
-                emoji: playerPayload.emojis?.[0] || '🐱',
-                isGuest: !!userProfile?.isAnonymous,
+                username: playerPayload.username || 'Explorer',
+                emoji: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
+                isGuest: !!activeUser?.isAnonymous,
                 score: 0
             });
 
             // PERSIST GUEST: Store identity locally
-            if (userProfile?.isAnonymous) {
+            if (activeUser?.isAnonymous) {
                 localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
                     name: nameOverride || customName,
                     emoji: emojiOverride || customEmoji,
@@ -306,7 +334,7 @@ const BattleRoom = () => {
         if (!isHost || !battle) return;
         if (confirm("Reset everything? This will remove all players from the leaderboard. 🧹")) {
             setLoading(true);
-            await resetBattle(battle.id || battleId, userProfile);
+            await resetBattle(battle.id || battleId, activeUser);
             setLoading(false);
         }
     };
@@ -338,7 +366,7 @@ const BattleRoom = () => {
                 </div>
                 <div className="relative z-10">
                     <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider">Playing As</div>
-                    <div className="font-bold text-gray-800 dark:text-white text-xl truncate w-32">{userProfile?.username || 'Guest'}</div>
+                    <div className="font-bold text-gray-800 dark:text-white text-xl truncate w-32">{activeUser?.username || 'Guest'}</div>
                 </div>
             </div>
         </div>
@@ -375,13 +403,13 @@ const BattleRoom = () => {
                                 </div>
 
                                 <button
-                                    onClick={() => userProfile?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
+                                    onClick={() => activeUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
                                     disabled={!authUser}
                                     className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${!authUser ? 'opacity-50 cursor-wait' : ''}`}
                                 >
-                                    {(userProfile?.isSyncing || !userProfile) && <span className="material-symbols-rounded animate-spin">sync</span>}
+                                    {(activeUser?.isSyncing || !activeUser) && <span className="material-symbols-rounded animate-spin">sync</span>}
                                     {authUser ? (
-                                        userProfile?.isAnonymous ? 'Enter Battle' : `Join as ${userProfile?.username || 'Member'}`
+                                        activeUser?.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
                                     ) : 'Syncing Profile...'}
                                 </button>
                             </div>
@@ -510,7 +538,7 @@ const BattleRoom = () => {
                                                     style={{ bottom: `calc(${Math.max(5, h)}% + 45px)` }}
                                                 >
                                                     <div className="w-10 h-10 bg-white dark:bg-gray-700 rounded-full flex items-center justify-center text-2xl shadow-lg border-2 border-indigo-200">
-                                                        {userProfile?.emojis?.[0] || '🐱'}
+                                                        {activeUser?.emoji || activeUser?.emojis?.[0] || '🐱'}
                                                     </div>
                                                 </div>
                                             )}
@@ -634,7 +662,7 @@ const BattleRoom = () => {
     if (!battle) {
         return (
             <div className="min-h-screen bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-8">
-                {authLoading || !authUser ? (
+                {authLoading ? (
                     <div className="floating-card p-12 bg-white dark:bg-gray-800 rounded-[3rem] shadow-3d-cyan text-center border-4 border-white animate-pulse">
                         <div className="w-24 h-24 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
                             <span className="material-symbols-rounded text-5xl text-cyan-600 animate-spin">sync</span>
