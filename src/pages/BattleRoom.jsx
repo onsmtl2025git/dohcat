@@ -728,40 +728,58 @@ const BattleRoom = () => {
 
     if (!battle) {
         return (
-            <div className="min-h-screen bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-gray-50 dark:bg-gray-900 flex flex-col items-center justify-center p-8">
-                {authLoading ? (
-                    <div className="floating-card p-12 bg-white dark:bg-gray-800 rounded-[3rem] shadow-3d-cyan text-center border-4 border-white animate-pulse">
-                        <div className="w-24 h-24 bg-cyan-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <span className="material-symbols-rounded text-5xl text-cyan-600 animate-spin">sync</span>
+            <div className="min-h-screen flex items-center justify-center bg-indigo-50 dark:bg-gray-900 p-4">
+                <div className="floating-card p-12 bg-white dark:bg-gray-800 rounded-[3rem] shadow-3d-red text-center border-4 border-white animate-in zoom-in duration-500">
+                    <div className="relative w-32 h-32 mx-auto mb-10">
+                        <div className="absolute inset-0 bg-red-100 rounded-full animate-ping opacity-20"></div>
+                        <div className="w-full h-full bg-red-50 dark:bg-red-900/30 rounded-full border-4 border-red-100 dark:border-red-800 flex items-center justify-center relative">
+                            <span className="material-symbols-rounded text-6xl text-red-500 drop-shadow-md">satellite_alt</span>
                         </div>
-                        <h2 className="text-3xl font-black text-gray-800 dark:text-white mb-2 uppercase tracking-tight">Syncing Profile...</h2>
-                        <p className="text-gray-500 font-bold">Identifying your character</p>
                     </div>
-                ) : (
-                    <div className="floating-card p-12 bg-white dark:bg-gray-800 rounded-[3rem] shadow-3d-red text-center border-4 border-white animate-in zoom-in duration-500">
-                        <div className="relative w-32 h-32 mx-auto mb-10">
-                            <div className="absolute inset-0 bg-red-100 rounded-full animate-ping opacity-20"></div>
-                            <div className="w-full h-full bg-red-50 dark:bg-red-900/30 rounded-full border-4 border-red-100 dark:border-red-800 flex items-center justify-center relative">
-                                <span className="material-symbols-rounded text-6xl text-red-500 drop-shadow-md">satellite_alt</span>
-                            </div>
-                        </div>
-                        <h1 className="text-5xl font-black text-gray-800 dark:text-white mb-4 uppercase tracking-tighter">Signal Lost</h1>
-                        <p className="text-gray-500 dark:text-gray-300 font-bold text-xl mb-12 max-w-sm mx-auto leading-relaxed">
-                            We couldn't locate that Battle or Catpool. It may have been deleted.
-                        </p>
-                        <button
-                            onClick={() => nav('/')}
-                            className="w-full py-5 bg-gray-900 text-white font-black rounded-2xl shadow-3d-white hover:bg-black transition-all flex items-center justify-center gap-3 group"
-                        >
-                            <span className="material-symbols-rounded group-hover:-translate-x-1 transition-transform">arrow_back</span>
-                            RETURN TO BASE
-                        </button>
-                    </div>
-                )}
+                    <h1 className="text-5xl font-black text-gray-800 dark:text-white mb-4 uppercase tracking-tighter">Signal Lost</h1>
+                    <p className="text-gray-500 dark:text-gray-300 font-bold text-xl mb-12 max-w-sm mx-auto leading-relaxed">
+                        We couldn't locate that Battle or Catpool. It may have been deleted.
+                    </p>
+                    <button
+                        onClick={() => nav('/')}
+                        className="w-full py-5 bg-gray-900 text-white font-black rounded-2xl shadow-3d-white hover:bg-black transition-all flex items-center justify-center gap-3 group"
+                    >
+                        <span className="material-symbols-rounded group-hover:-translate-x-1 transition-transform">arrow_back</span>
+                        RETURN TO BASE
+                    </button>
+                </div>
             </div>
         );
     }
 
+    // 3. REGISTERED SYNC SCREEN (User exists, not anonymous, but profile syncing)
+    if (authUser && !authUser.isAnonymous && !activeUser) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-indigo-50 dark:bg-gray-900">
+                <div className="text-center animate-pulse">
+                    <h2 className="text-2xl font-bold text-indigo-900 dark:text-gray-100 mb-4">
+                        Welcome, {authUser.displayName || "Member"}!
+                    </h2>
+                    <button disabled className="px-8 py-3 bg-indigo-200 text-indigo-800 rounded-full font-bold">
+                        Syncing Profile...
+                    </button>
+                </div>
+            </div>
+        );
+    }
+
+    // 4. GUEST ENTRY THE FIX (Guest, and not joined yet) -> Force Modal
+    // If we are anonymous (or auth is missing/loading) AND we haven't successfully joined locally
+    if ((!authUser || authUser.isAnonymous) && !hasJoinedLocally) {
+        return (
+            <GuestJoinModal
+                onJoin={(name, emoji) => handleJoin(name, emoji)}
+                isSyncing={false}
+            />
+        );
+    }
+
+    // 5. GAME INTERFACE (Layout)
     return (
         <div className="min-h-screen p-4 md:p-8 flex flex-col">
             <h1 className="text-xl font-bold text-gray-500/50 mb-6 font-display uppercase tracking-[0.2em] text-center">
