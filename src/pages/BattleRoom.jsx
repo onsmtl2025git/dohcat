@@ -322,8 +322,64 @@ const BattleRoom = () => {
         });
     };
 
+    const handleGuestJoin = async (name, emoji) => {
+        // 1. Create a clear Guest Object (Standardized Structure)
+        const guestPlayer = {
+            uid: authUser ? authUser.uid : `guest_${Date.now()}`,
+            username: name,
+            emoji: emoji,
+            isGuest: true,
+            score: 0
+        };
+
+        // 2. Update Local State (Shows the Game UI immediately)
+        setCustomName(name);
+        setCustomEmoji(emoji);
+        setHasJoinedLocally(true);
+        setShowGuestModal(false);
+
+        // 3. Update Realtime Database (Shows them on Leaderboard instantly)
+        // We prioritize this over Firestore to ensure "Answers Counting" visual feedback
+        setPlayerOnline(battle.id || battleId, guestPlayer).catch(e => console.error("RTDB Join Error", e));
+
+        // 4. Update Firestore & Local Storage (Background Sync)
+        // Store identity locally for rejoin
+        if (authUser) {
+            localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
+                name: name,
+                emoji: emoji,
+                uid: authUser.uid
+            }));
+
+            // Rejoin Token
+            localStorage.setItem('active_battle', JSON.stringify({
+                battleId: battle.id || battleId,
+                name: name,
+                uid: authUser.uid
+            }));
+        }
+
+        // Call Service to update Firestore 'players' array
+        // We do this to ensure they are in the permanent record for stats
+        const result = await joinBattle(battle.id || battleId, guestPlayer, false);
+        if (result && !result.success) {
+            console.error("Firestore Join Error:", result.error);
+            // We don't kick them out if RTDB succeeded, but we warn
+        }
+    };
+
     const handleJoin = async (nameOverride = null, emojiOverride = null, asSpectator = false) => {
         if (!authUser) return;
+
+        // DELEGATE GUEST LOGIC
+        if (authUser.isAnonymous && !asSpectator) {
+            // If name override provided (e.g. from modal) use it, otherwise fallback
+            const name = nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase()}`;
+            const emoji = emojiOverride || customEmoji || '🐱';
+            await handleGuestJoin(name, emoji);
+            return;
+        }
+
         setHasJoinedLocally(true);
 
         let finalProfile = userProfile;
@@ -333,13 +389,7 @@ const BattleRoom = () => {
             if (snap.exists()) finalProfile = snap.data();
         }
 
-        // If anonymous, use custom name/emoji from overrides or state.
-        const playerPayload = authUser.isAnonymous ? {
-            ...activeUser,
-            username: nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase() || '????'}`,
-            emoji: emojiOverride || customEmoji,
-            emojis: [emojiOverride || customEmoji, ...(activeUser?.emojis || [])]
-        } : {
+        const playerPayload = {
             ...finalProfile,
             uid: authUser.uid // Ensure UID is attached
         };
@@ -349,34 +399,22 @@ const BattleRoom = () => {
             alert(result.error || "Could not join battle. 🛑");
             setHasJoinedLocally(false);
         } else {
-            setShowGuestModal(false);
-
-            // OPTIMIZATION 3: "Rejoin" Link logic - Save generic recovery token
-            localStorage.setItem('active_battle', JSON.stringify({
-                battleId: battle.id || battleId,
-                name: playerPayload.username,
-                uid: authUser.uid
-            }));
-
             // JOIN PRESENCE: Add to RTDB sidecar (only if not spectator)
             if (!asSpectator) {
                 setPlayerOnline(battle.id || battleId, {
                     uid: authUser.uid,
                     username: playerPayload.username || 'Explorer',
                     emoji: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
-                    isGuest: !!activeUser?.isAnonymous,
+                    isGuest: false,
                     score: 0
                 });
             }
-
-            // PERSIST GUEST: Store identity locally
-            if (activeUser?.isAnonymous) {
-                localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
-                    name: nameOverride || customName,
-                    emoji: emojiOverride || customEmoji,
-                    uid: authUser.uid
-                }));
-            }
+            // Rejoin Token for Registered
+            localStorage.setItem('active_battle', JSON.stringify({
+                battleId: battle.id || battleId,
+                name: playerPayload.username,
+                uid: authUser.uid
+            }));
         }
     };
 
