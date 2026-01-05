@@ -203,7 +203,9 @@ const BattleRoom = () => {
         let cleanupFunc = null;
 
         const recoverRegisteredMember = async () => {
-            if (activeUser && !activeUser.isAnonymous && !hasJoinedLocally && battle) {
+            // ✅ CRITICAL FIX: Check '!authUser.isAnonymous' direct from Auth
+            // We only Auto-Join if they are a REAL registered user.
+            if (authUser && !authUser.isAnonymous && !hasJoinedLocally && battle) {
                 // LOCK: Wait for profile to be truly ready (has username) 
                 // If context is slow, we can do a tactical fetch here
                 let finalProfile = userProfile;
