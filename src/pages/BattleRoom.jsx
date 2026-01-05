@@ -174,11 +174,11 @@ const BattleRoom = () => {
                             if (existingPlayerInFirestore) {
                                 setHasJoinedLocally(true);
                                 if (!isAlreadyOnlineInRTDB) {
-                                    // Restore Presence Sidecar Node
+                                    // Restore Presence Sidecar Node (Standardized Schema)
                                     cleanupFunc = await setPlayerOnline(battleId, {
-                                        uid,
-                                        username: name,
-                                        emoji: emoji,
+                                        id: uid,
+                                        name: name,
+                                        avatar: emoji,
                                         isGuest: true,
                                         score: existingPlayerInFirestore.score || 0
                                     });
@@ -224,9 +224,9 @@ const BattleRoom = () => {
                     const isAlreadyOnline = activePlayers.some(p => p.uid === activeUser.uid);
                     if (!isAlreadyOnline) {
                         cleanupFunc = await setPlayerOnline(battleId, {
-                            uid: activeUser.uid,
-                            username: finalProfile.username,
-                            emoji: finalProfile.emoji || finalProfile.emojis?.[0] || '🐱',
+                            id: activeUser.uid,
+                            name: finalProfile.username,
+                            avatar: finalProfile.emoji || finalProfile.emojis?.[0] || '🐱',
                             isGuest: false,
                             score: existingPlayer.score || 0
                         });
@@ -322,7 +322,7 @@ const BattleRoom = () => {
         });
     };
 
-    const handleGuestJoin = async (name, emoji) => {
+    const handleGuestJoin = async (nickname, emoji) => {
         try {
             // 1. Create a clear Guest Object (Standardized Structure)
             // Use auth uid if available, else fallback to timestamp
@@ -347,25 +347,28 @@ const BattleRoom = () => {
             // 3. Update Realtime Database (Shows them on Leaderboard instantly)
             await setPlayerOnline(battle.id || battleId, guestPlayer);
 
-            // 4. Background: Sync to Firestore & Local Storage
+            // 4. Background Sync: Storage & Firestore
             if (authUser) {
-                // Store identity locally for rejoin
                 localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
-                    name: name,
-                    emoji: emoji,
-                    uid: authUser.uid
+                    name: nickname,
+                    avatar: emoji,
+                    id: authUser.uid
                 }));
 
-                // Rejoin Token
                 localStorage.setItem('active_battle', JSON.stringify({
                     battleId: battle.id || battleId,
-                    name: name,
-                    uid: authUser.uid
+                    name: nickname,
+                    id: authUser.uid
                 }));
             }
 
-            // JOIN BATTLE CALL WITH PROMISE CATCH
-            joinBattle(battle.id || battleId, guestPlayer, false)
+            // JOIN BATTLE CALL WITH PROMISE CATCH (Mapped to internal schema)
+            joinBattle(battle.id || battleId, {
+                uid: guestPlayer.id,
+                username: guestPlayer.name,
+                emoji: guestPlayer.avatar,
+                isGuest: true
+            }, false)
                 .then(result => {
                     if (result && !result.success) {
                         console.warn("Firestore Join Warning (Guest):", result.error);
@@ -416,9 +419,9 @@ const BattleRoom = () => {
             // JOIN PRESENCE: Add to RTDB sidecar (only if not spectator)
             if (!asSpectator) {
                 setPlayerOnline(battle.id || battleId, {
-                    uid: authUser.uid,
-                    username: playerPayload.username || 'Explorer',
-                    emoji: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
+                    id: authUser.uid,
+                    name: playerPayload.username || 'Explorer',
+                    avatar: playerPayload.emoji || playerPayload.emojis?.[0] || '🐱',
                     isGuest: false,
                     score: 0
                 });
@@ -427,7 +430,7 @@ const BattleRoom = () => {
             localStorage.setItem('active_battle', JSON.stringify({
                 battleId: battle.id || battleId,
                 name: playerPayload.username,
-                uid: authUser.uid
+                id: authUser.uid
             }));
         }
     };
@@ -450,12 +453,12 @@ const BattleRoom = () => {
                 </h3>
                 <div className="space-y-2 overflow-y-auto max-h-[60vh] pr-2 custom-scrollbar relative z-10">
                     {sortedPlayers.map((p, i) => (
-                        <div key={p.uid} className="flex items-center gap-2 bg-gray-50/80 hover:bg-white dark:bg-gray-700/50 p-2 rounded-xl border-2 border-transparent hover:border-cyan-200 transition-all shadow-sm">
+                        <div key={p.id || p.uid} className="flex items-center gap-2 bg-gray-50/80 hover:bg-white dark:bg-gray-700/50 p-2 rounded-xl border-2 border-transparent hover:border-cyan-200 transition-all shadow-sm">
                             <div className={`w-8 h-8 flex items-center justify-center font-black rounded-lg text-xs ${i === 0 ? 'bg-yellow-100 text-yellow-600' : 'bg-gray-100 text-gray-500'}`}>{i + 1}</div>
-                            <span className="text-xl">{p.emoji || '🐱'}</span>
+                            <span className="text-xl">{p.avatar || p.emoji || '🐱'}</span>
                             <div className="flex-1 min-w-0">
-                                <div className="text-xs font-bold text-gray-800 dark:text-white truncate">{p.username || 'Guest'}</div>
-                                <div className="text-[9px] font-black text-cyan-500 uppercase tracking-tighter">{p.score} pts</div>
+                                <div className="text-xs font-bold text-gray-800 dark:text-white truncate">{p.name || p.username || 'Guest'}</div>
+                                <div className="text-[9px] font-black text-cyan-500 uppercase tracking-tighter">{p.score || 0} pts</div>
                             </div>
                         </div>
                     ))}

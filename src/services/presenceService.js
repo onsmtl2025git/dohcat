@@ -6,19 +6,19 @@ import { rtdb } from "../firebase";
  * Uses onDisconnect().remove() to ensure they vanish if they close the tab.
  */
 export const setPlayerOnline = async (battleId, player) => {
-    if (!battleId || !player?.uid) return;
+    if (!battleId || !player?.id) return;
 
-    const userStatusRef = ref(rtdb, `battles/${battleId}/online/${player.uid}`);
+    const userStatusRef = ref(rtdb, `battles/${battleId}/online/${player.id}`);
 
     // 1. Setup automatic removal on disconnect
     onDisconnect(userStatusRef).remove();
 
     // 2. Set current status
-    // We mirror essential UI data: Name, Emoji/Avatar, isGuest, and Score
+    // Standardized Schema: id, name, avatar, isGuest, score
     const statusData = {
-        uid: player.uid,
-        username: player.username || 'Explorer',
-        emoji: player.emoji || (player.emojis?.[0]) || '🐱',
+        id: player.id,
+        name: player.name || 'Explorer',
+        avatar: player.avatar || '🐱',
         isGuest: !!player.isGuest,
         score: player.score || 0,
         lastActive: Date.now()
@@ -32,12 +32,12 @@ export const setPlayerOnline = async (battleId, player) => {
 
 /**
  * Updates a player's score in the RTDB sidecar using runTransaction to prevent overwrites.
- * Accepts pointsToAdd (delta) for atomic increments.
+ * Uses 'id' as the primary lookup key.
  */
-export const updatePlayerScoreRTDB = async (battleId, uid, pointsToAdd) => {
-    if (!battleId || !uid) return;
-    const scoreRef = ref(rtdb, `battles/${battleId}/online/${uid}/score`);
-    const lastActiveRef = ref(rtdb, `battles/${battleId}/online/${uid}/lastActive`);
+export const updatePlayerScoreRTDB = async (battleId, id, pointsToAdd) => {
+    if (!battleId || !id) return;
+    const scoreRef = ref(rtdb, `battles/${battleId}/online/${id}/score`);
+    const lastActiveRef = ref(rtdb, `battles/${battleId}/online/${id}/lastActive`);
 
     // 1. Update Score Atomically
     await runTransaction(scoreRef, (currentScore) => {
@@ -51,8 +51,8 @@ export const updatePlayerScoreRTDB = async (battleId, uid, pointsToAdd) => {
 /**
  * Manually removes a player from the online list.
  */
-export const removePlayerOnline = async (battleId, uid) => {
-    if (!battleId || !uid) return;
-    const userStatusRef = ref(rtdb, `battles/${battleId}/online/${uid}`);
+export const removePlayerOnline = async (battleId, id) => {
+    if (!battleId || !id) return;
+    const userStatusRef = ref(rtdb, `battles/${battleId}/online/${id}`);
     await remove(userStatusRef);
 };
