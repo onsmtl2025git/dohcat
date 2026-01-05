@@ -156,41 +156,52 @@ const BattleRoom = () => {
 
     // GUEST PERSISTENCE: Restore session if refreshed (Guests)
     useEffect(() => {
-        if (activeUser?.isAnonymous && !hasJoinedLocally && battle) {
-            const savedGuest = localStorage.getItem(`guest_auth_${battleId}`);
-            if (savedGuest) {
-                try {
-                    const { name, emoji, uid } = JSON.parse(savedGuest);
-                    if (uid === authUser?.uid) {
-                        setCustomName(name);
-                        setCustomEmoji(emoji);
+        let cleanupFunc = null;
 
-                        const existingPlayerInFirestore = battle.players?.find(p => p.uid === uid);
-                        const isAlreadyOnlineInRTDB = activePlayers.some(p => p.uid === uid);
+        const restoreGuest = async () => {
+            if (activeUser?.isAnonymous && !hasJoinedLocally && battle) {
+                const savedGuest = localStorage.getItem(`guest_auth_${battleId}`);
+                if (savedGuest) {
+                    try {
+                        const { name, emoji, uid } = JSON.parse(savedGuest);
+                        if (uid === authUser?.uid) {
+                            setCustomName(name);
+                            setCustomEmoji(emoji);
 
-                        if (existingPlayerInFirestore) {
-                            setHasJoinedLocally(true);
-                            if (!isAlreadyOnlineInRTDB) {
-                                // Restore Presence Sidecar Node
-                                setPlayerOnline(battleId, {
-                                    uid,
-                                    username: name,
-                                    emoji: emoji,
-                                    isGuest: true,
-                                    score: existingPlayerInFirestore.score || 0
-                                });
+                            const existingPlayerInFirestore = battle.players?.find(p => p.uid === uid);
+                            const isAlreadyOnlineInRTDB = activePlayers.some(p => p.uid === uid);
+
+                            if (existingPlayerInFirestore) {
+                                setHasJoinedLocally(true);
+                                if (!isAlreadyOnlineInRTDB) {
+                                    // Restore Presence Sidecar Node
+                                    cleanupFunc = await setPlayerOnline(battleId, {
+                                        uid,
+                                        username: name,
+                                        emoji: emoji,
+                                        isGuest: true,
+                                        score: existingPlayerInFirestore.score || 0
+                                    });
+                                }
                             }
                         }
+                    } catch (e) {
+                        console.error("Failed to restore guest session:", e);
                     }
-                } catch (e) {
-                    console.error("Failed to restore guest session:", e);
                 }
             }
-        }
+        };
+        restoreGuest();
+
+        return () => {
+            if (cleanupFunc) cleanupFunc();
+        };
     }, [activeUser?.isAnonymous, battleId, !!battle, authUser?.uid, activePlayers.length === 0]);
 
     // MEMBER PERSISTENCE: Restore session if refreshed (Registered Users)
     useEffect(() => {
+        let cleanupFunc = null;
+
         const recoverRegisteredMember = async () => {
             if (activeUser && !activeUser.isAnonymous && !hasJoinedLocally && battle) {
                 // LOCK: Wait for profile to be truly ready (has username) 
@@ -210,7 +221,7 @@ const BattleRoom = () => {
                     setHasJoinedLocally(true);
                     const isAlreadyOnline = activePlayers.some(p => p.uid === activeUser.uid);
                     if (!isAlreadyOnline) {
-                        setPlayerOnline(battleId, {
+                        cleanupFunc = await setPlayerOnline(battleId, {
                             uid: activeUser.uid,
                             username: finalProfile.username,
                             emoji: finalProfile.emoji || finalProfile.emojis?.[0] || '🐱',
@@ -222,6 +233,10 @@ const BattleRoom = () => {
             }
         };
         recoverRegisteredMember();
+
+        return () => {
+            if (cleanupFunc) cleanupFunc();
+        };
     }, [activeUser?.isAnonymous, !!battle, activePlayers.length === 0, userProfile?.username, authUser?.uid]);
 
     // Main Game Timer - Ticks only when no countdown is active
@@ -333,6 +348,13 @@ const BattleRoom = () => {
             setHasJoinedLocally(false);
         } else {
             setShowGuestModal(false);
+
+            // OPTIMIZATION 3: "Rejoin" Link logic - Save generic recovery token
+            localStorage.setItem('active_battle', JSON.stringify({
+                battleId: battle.id || battleId,
+                name: playerPayload.username,
+                uid: authUser.uid
+            }));
 
             // JOIN PRESENCE: Add to RTDB sidecar (only if not spectator)
             if (!asSpectator) {

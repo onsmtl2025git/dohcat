@@ -25,7 +25,9 @@ export const setPlayerOnline = async (battleId, player) => {
     };
 
     await set(userStatusRef, statusData);
-    return userStatusRef;
+
+    // Return a cleanup function
+    return () => remove(userStatusRef);
 };
 
 /**
