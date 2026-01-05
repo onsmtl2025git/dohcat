@@ -7,8 +7,10 @@ const GuestJoinModal = ({ onJoin, onCancel, isSyncing }) => {
     const emojis = ['😎', '🚀', '🐱', '🦖', '🤖', '👽', '🦄', '🐯'];
 
     const handleSubmit = (e) => {
-        e.preventDefault();
-        if (!nickname.trim()) return alert("Please enter a nickname to join the battle!");
+        e.preventDefault(); // <--- CRITICAL: Prevents page reload
+        if (!nickname.trim()) return alert("Please enter a name!");
+
+        console.log("Submitting Guest:", nickname, selectedEmoji); // Debug log
         onJoin(nickname.trim(), selectedEmoji);
     };
 
@@ -56,8 +58,8 @@ const GuestJoinModal = ({ onJoin, onCancel, isSyncing }) => {
                                         type="button"
                                         onClick={() => setSelectedEmoji(emoji)}
                                         className={`h-16 flex items-center justify-center text-3xl rounded-2xl transition-all duration-300 ${selectedEmoji === emoji
-                                                ? 'bg-indigo-600 shadow-lg scale-110 -rotate-3 text-white'
-                                                : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 grayscale hover:grayscale-0'
+                                            ? 'bg-indigo-600 shadow-lg scale-110 -rotate-3 text-white'
+                                            : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600 grayscale hover:grayscale-0'
                                             }`}
                                     >
                                         {emoji}
