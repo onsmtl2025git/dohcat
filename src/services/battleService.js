@@ -120,14 +120,23 @@ export const submitAnswer = async (battleId, userId, optionIndex, isCorrect) => 
             return p;
         });
 
-        await updateDoc(battleRef, {
-            ...statsUpdate,
-            players: newPlayers
-        });
-
-        // MIRROR TO RTDB PRESENCE SIDE CAR (skip spectators)
+        // 1. ALWAYS Update Live Leaderboard (RTDB) - Critical for Game State
         if (isCorrect && !isSpectator) {
-            updatePlayerScoreRTDB(battleId, userId, 100);
+            // Run this in parallel/independent of Firestore
+            updatePlayerScoreRTDB(battleId, userId, 100).catch(err =>
+                console.error("RTDB Score update failed:", err)
+            );
+        }
+
+        // 2. Update Permanent History & Stats (Firestore)
+        try {
+            await updateDoc(battleRef, {
+                ...statsUpdate,
+                players: newPlayers
+            });
+        } catch (error) {
+            console.warn("Firestore stat update failed (likely guest permissions):", error);
+            // Non-blocking failure - game continues
         }
     }
 };

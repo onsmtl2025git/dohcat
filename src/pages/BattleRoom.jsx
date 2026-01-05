@@ -5,8 +5,7 @@ import { findQuizByBattleCode, findQuizById } from '../services/quizService';
 import { useUser } from '../context/UserContext';
 import confetti from 'canvas-confetti';
 import GuestJoinModal from '../components/GuestJoinModal';
-import { db, rtdb, auth } from '../firebase';
-import { signInAnonymously } from 'firebase/auth';
+import { db, rtdb } from '../firebase';
 import { ref, onValue } from 'firebase/database';
 import { setPlayerOnline, removePlayerOnline } from '../services/presenceService';
 import { doc, getDoc } from 'firebase/firestore';
@@ -322,37 +321,25 @@ const BattleRoom = () => {
     };
 
     const handleJoin = async (nameOverride = null, emojiOverride = null, asSpectator = false) => {
-        let currentAuth = authUser;
-        if (!currentAuth) {
-            try {
-                // AUTO-SIGN IN for Guests
-                const cred = await signInAnonymously(auth);
-                currentAuth = cred.user;
-            } catch (error) {
-                console.error("Guest login failed:", error);
-                alert("Could not start guest session. Please try again.");
-                return;
-            }
-        }
+        if (!authUser) return;
         setHasJoinedLocally(true);
 
         let finalProfile = userProfile;
         // TACTICAL FETCH: If registered and name is missing, force a fetch to avoid 'Guest' label
-        if (currentAuth && !currentAuth.isAnonymous && !finalProfile?.username) {
-            const snap = await getDoc(doc(db, "users", currentAuth.uid));
+        if (!authUser.isAnonymous && !finalProfile?.username) {
+            const snap = await getDoc(doc(db, "users", authUser.uid));
             if (snap.exists()) finalProfile = snap.data();
         }
 
         // If anonymous, use custom name/emoji from overrides or state.
-        const playerPayload = currentAuth.isAnonymous ? {
+        const playerPayload = authUser.isAnonymous ? {
             ...activeUser,
-            username: nameOverride || customName || `Explorer #${currentAuth.uid?.slice(-4).toUpperCase() || '????'}`,
+            username: nameOverride || customName || `Explorer #${authUser.uid?.slice(-4).toUpperCase() || '????'}`,
             emoji: emojiOverride || customEmoji,
-            uid: currentAuth.uid,
             emojis: [emojiOverride || customEmoji, ...(activeUser?.emojis || [])]
         } : {
             ...finalProfile,
-            uid: currentAuth.uid // Ensure UID is attached
+            uid: authUser.uid // Ensure UID is attached
         };
 
         const result = await joinBattle(battle.id || battleId, playerPayload, asSpectator);
@@ -485,14 +472,14 @@ const BattleRoom = () => {
                                     </div>
                                 ) : (
                                     <button
-                                        onClick={() => (!authUser || authUser?.isAnonymous) ? setShowGuestModal(true) : handleJoin()}
-                                        disabled={false}
-                                        className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2`}
+                                        onClick={() => authUser?.isAnonymous ? setShowGuestModal(true) : handleJoin()}
+                                        disabled={!authUser}
+                                        className={`w-full py-5 bg-indigo-600 text-white font-black rounded-2xl shadow-xl hover:bg-indigo-700 hover:scale-[1.02] transition-all uppercase tracking-widest mt-4 flex items-center justify-center gap-2 ${!authUser ? 'opacity-50 cursor-wait' : ''}`}
                                     >
-                                        {(activeUser?.isSyncing) && <span className="material-symbols-rounded animate-spin">sync</span>}
+                                        {(activeUser?.isSyncing || !activeUser) && <span className="material-symbols-rounded animate-spin">sync</span>}
                                         {authUser ? (
                                             authUser.isAnonymous ? 'Enter Battle' : `Join as ${activeUser?.username || 'Member'}`
-                                        ) : 'Enter as Guest'}
+                                        ) : 'Syncing Profile...'}
                                     </button>
                                 )}
                             </div>
