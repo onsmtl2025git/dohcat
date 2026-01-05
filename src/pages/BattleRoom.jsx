@@ -438,7 +438,7 @@ const BattleRoom = () => {
                         {!isHost && !battle.players?.some(p => p.uid === authUser?.uid) ? (
                             <div className="w-full max-w-md bg-indigo-50/50 dark:bg-indigo-900/20 p-8 rounded-[2rem] border-2 border-indigo-100 dark:border-indigo-800 shadow-inner relative z-10 animate-in fade-in zoom-in duration-500">
                                 <h3 className="text-2xl font-black text-indigo-900 dark:text-indigo-100 mb-6 uppercase tracking-wider">
-                                    {(userProfile?.isAnonymous || authUser?.isAnonymous) ? "Join the Arena" : `Welcome, ${userProfile?.username || 'Member'}!`}
+                                    {(!authUser || userProfile?.isAnonymous || authUser?.isAnonymous) ? "Join the Arena" : `Welcome, ${userProfile?.username || 'Member'}!`}
                                 </h3>
 
                                 <div className="flex flex-col items-center gap-4 mb-8">
@@ -446,7 +446,7 @@ const BattleRoom = () => {
                                         {userProfile?.emojis?.[0] || '🐱'}
                                     </div>
                                     <p className="text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest text-sm">
-                                        {(userProfile?.isAnonymous || authUser?.isAnonymous) ? "Join as a guest to compete!" : "Use your registered profile to compete!"}
+                                        {(!authUser || userProfile?.isAnonymous || authUser?.isAnonymous) ? "Join as a guest to compete!" : "Use your registered profile to compete!"}
                                     </p>
                                 </div>
 
