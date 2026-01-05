@@ -323,50 +323,64 @@ const BattleRoom = () => {
     };
 
     const handleGuestJoin = async (name, emoji) => {
-        // 1. Create a clear Guest Object (Standardized Structure)
-        const guestPlayer = {
-            uid: authUser ? authUser.uid : `guest_${Date.now()}`,
-            username: name,
-            emoji: emoji,
-            isGuest: true,
-            score: 0
-        };
+        try {
+            // 1. Create a clear Guest Object (Standardized Structure)
+            // Use auth uid if available, else fallback to timestamp
+            const finalUid = authUser ? authUser.uid : `guest_${Date.now()}`;
 
-        // 2. Update Local State (Shows the Game UI immediately)
-        setCustomName(name);
-        setCustomEmoji(emoji);
-        setHasJoinedLocally(true);
-        setShowGuestModal(false);
-
-        // 3. Update Realtime Database (Shows them on Leaderboard instantly)
-        // We prioritize this over Firestore to ensure "Answers Counting" visual feedback
-        setPlayerOnline(battle.id || battleId, guestPlayer).catch(e => console.error("RTDB Join Error", e));
-
-        // 4. Update Firestore & Local Storage (Background Sync)
-        // Store identity locally for rejoin
-        if (authUser) {
-            localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
-                name: name,
+            const guestPlayer = {
+                uid: finalUid,
+                username: name,
                 emoji: emoji,
-                uid: authUser.uid
-            }));
+                isGuest: true,
+                score: 0
+            };
 
-            // Rejoin Token
-            localStorage.setItem('active_battle', JSON.stringify({
-                battleId: battle.id || battleId,
-                name: name,
-                uid: authUser.uid
-            }));
-        }
+            console.log("Guest Joining:", guestPlayer);
 
-        // Call Service to update Firestore 'players' array
-        // We do this to ensure they are in the permanent record for stats
-        const result = await joinBattle(battle.id || battleId, guestPlayer, false);
-        if (result && !result.success) {
-            console.error("Firestore Join Error:", result.error);
-            // We don't kick them out if RTDB succeeded, but we warn
+            // 2. Update Local State FIRST (This closes the modal & shows game)
+            setCustomName(name);
+            setCustomEmoji(emoji);
+            setHasJoinedLocally(true);
+            setShowGuestModal(false);
+
+            // 3. Update Realtime Database (Shows them on Leaderboard instantly)
+            await setPlayerOnline(battle.id || battleId, guestPlayer);
+
+            // 4. Background: Sync to Firestore & Local Storage
+            if (authUser) {
+                // Store identity locally for rejoin
+                localStorage.setItem(`guest_auth_${battleId}`, JSON.stringify({
+                    name: name,
+                    emoji: emoji,
+                    uid: authUser.uid
+                }));
+
+                // Rejoin Token
+                localStorage.setItem('active_battle', JSON.stringify({
+                    battleId: battle.id || battleId,
+                    name: name,
+                    uid: authUser.uid
+                }));
+            }
+
+            // JOIN BATTLE CALL WITH PROMISE CATCH
+            joinBattle(battle.id || battleId, guestPlayer, false)
+                .then(result => {
+                    if (result && !result.success) {
+                        console.warn("Firestore Join Warning (Guest):", result.error);
+                    }
+                })
+                .catch(err => console.error("Firestore Join Exception:", err));
+
+        } catch (error) {
+            console.error("Guest Join Error:", error);
+            alert("Could not join arena: " + error.message);
+            setHasJoinedLocally(false);
         }
     };
+
+
 
     const handleJoin = async (nameOverride = null, emojiOverride = null, asSpectator = false) => {
         if (!authUser) return;
